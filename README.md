@@ -74,6 +74,28 @@ cmake --build build
 ctest --test-dir build
 ```
 
+## Usage
+
+The CLI binary lives at `build/rocklaunch-cli/rocklaunch-cli` after building.
+Configuration and logs are created automatically on first run under
+`~/.config/rocksmith-launcher/` and `~/.local/share/rocksmith-launcher/`.
+
+```sh
+# Show all commands
+./build/rocklaunch-cli/rocklaunch-cli --help
+
+# Create a profile (auto-named rocksmith2014-1 when no name is given)
+./build/rocklaunch-cli/rocklaunch-cli profile new
+
+# Point a profile at a game installation (Steam or non-Steam; validates the game files)
+./build/rocklaunch-cli/rocklaunch-cli set-path rocksmith2014-1 /path/to/Rocksmith2014
+
+# Inspect, list, or delete profiles
+./build/rocklaunch-cli/rocklaunch-cli profile show rocksmith2014-1
+./build/rocklaunch-cli/rocklaunch-cli profile list
+./build/rocklaunch-cli/rocklaunch-cli profile delete rocksmith2014-1
+```
+
 ## Credits
 
 The methods implemented by this launcher are inspired by the following projects. Links are added as each method is integrated:
