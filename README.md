@@ -22,14 +22,33 @@ The project is built in small, self-contained phases — each one is usable on i
 
 | Phase | Goal | Required by |
 |---|---|---|
-| 0 | Project skeleton (CMake, core library + CLI, `IGameProfile`, logging) | — |
-| 1 | Game detection (Steam `libraryfolders.vdf` + manual path) | Phase 2/3 |
+| 0 | ✅ Project skeleton (CMake, core library + CLI, `IGameProfile`, logging) | — |
+| 1 | ✅ Profile management and manual game paths | Phase 2/3 |
 | 2 | Proton/Wine runtime manager (list, install GE-Proton) | Phase 3 |
 | 3 | Launch the game from a clean prefix (no patches/audio yet) | Phase 4 |
 | 4 | No-cable patch: guitar input as the original Real Tone cable (toggleable) | Phase 6 |
 | 5 | CDLC patch (enable/disable) | Phase 6 |
 | 6 | First Qt/QML GUI | Phase 7 |
 | 7 | CDLC songs manager (CLI `dlc list/add/delete` + GUI) | — |
+
+> **Steam detection:** this is intentionally separate future work. Phase 1 manages
+> profiles and manually assigned game paths only; Steam auto-detection via
+> `libraryfolders.vdf` will be implemented when a Steam installation is available
+> for validation.
+
+## Profiles
+
+A profile is one independently configured Rocksmith installation. It owns its game
+directory, runtime selection, prefix, and patch settings. The same game directory
+cannot be assigned to more than one profile.
+
+The launcher configuration is separate from profiles and only stores launcher-wide
+settings. Future launches use the explicit form `rocklaunch-cli launch <profile>`.
+
+The current CLI lifecycle is `profile new` (auto-named `<game>-<n>` if no name is given),
+then `set-path <profile> <path>`. Use `profile show <profile>` to inspect an assignment,
+`profile list` to view all profiles, and `profile delete <profile>` to remove a profile
+configuration.
 
 ## Architecture & Development
 
@@ -42,6 +61,8 @@ Want to contribute? All the details live in two documents so this README doesn't
 ## Design principles
 
 - Steam and non-Steam installations are supported on equal footing — for non-Steam games you simply point the launcher at the game directory. The launcher only checks that the expected files exist.
+- Each game installation belongs to exactly one profile. Patches, runtime choice, and
+  prefix state are profile-specific; launcher-wide preferences remain global.
 - The launcher reimplements the relevant methods (no-cable patch, CDLC management, pre-launch audio setup) itself, inspired by existing projects — no `launcher.exe -> game.exe` chains, and no extra files from the user. You only provide the game.
 - Detection is preferred over download: if you have Steam, use the Proton/GE-Proton already installed before implementing a downloader.
 

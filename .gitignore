@@ -1,2 +1,11 @@
 # Personal / local-only files
 AGENTS.md
+
+# CMake build output
+build/
+
+# Compiled artifacts (safety net if anything escapes the build directory)
+*.o
+*.a
+*.so
+*.so.*
