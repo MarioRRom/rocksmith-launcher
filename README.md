@@ -96,6 +96,13 @@ Configuration and logs are created automatically on first run under
 ./build/rocklaunch-cli/rocklaunch-cli profile delete rocksmith2014-1
 ```
 
+## License
+
+GNU General Public License v3.0 — see [LICENSE](./LICENSE).
+
+The methods implemented by this launcher are *inspired by* the projects listed below
+and reimplemented from scratch. See [Credits](#credits).
+
 ## Credits
 
 The methods implemented by this launcher are inspired by the following projects. Links are added as each method is integrated:
