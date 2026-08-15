@@ -1,108 +1,58 @@
 # CDLC Patch — Design Notes (Phase 5)
 
-**Status:** method decided, PoC pending (blocked on mingw-w64). Companion doc:
-`NoCablePatch.md` — the no-cable half of the same injected DLL.
+**Status: WIP, undecided.** Two possible paths, neither committed yet. Picking
+one is blocked on a few open questions below. Companion doc: `NoCablePatch.md`
+(no longer related — that patch doesn't need a DLL anymore).
 
-## Inspiration
+## The problem
 
-[RSCDLCEnabler](https://github.com/phobos2077/RS2014-CDLC-Installer), the hook
-component of phobos2077's Windows CDLC installer. We do not fork or delegate to
-it — we reimplement the method at launcher level, credited in the README.
+Rocksmith 2014 rejects custom song packs (CDLC, `.psarc` files not signed by
+Ubisoft) — it checks a signature and refuses anything that doesn't pass. To
+support CDLC we need to make the game accept them anyway.
 
-## What I tried first (and why it matters)
+## Plan A — use Lovrom8's DLL directly
 
-- The original installer is a Windows GUI whose only job is copying one DLL into
-  the game folder. **Its quirk:** it locates the game via the Steam path, so
-  non-Steam installs (like the author's) can't use it as-is. That's exactly the
-  case our launcher solves.
-- The hook worked fine under Wine in the author's install (game folder, no
-  `WINEDLLOVERRIDES`), confirming the proxy-DLL mechanism works in our environment.
+Grab the enabler DLL from
+[Lovrom8/RSCDLCEnabler-TooManyCoresFix](https://github.com/Lovrom8/RSCDLCEnabler-TooManyCoresFix)
+(an actively maintained fork of the original CDLC enabler) and have the launcher
+manage it — download it, drop it in the game folder, done.
 
-**Why the enabler exists:** the game verifies the signature of every song pack
-and rejects custom ones. The fix makes `verify_signature` always report a valid
-signature, accepting CDLC songs (`.psarc`).
+**Pros:** way less work, no need to build anything ourselves, maintained by
+someone else.
 
-## How the enabler works
+**Open questions / risks:**
+- **License.** The repo (and the original it's based on) doesn't declare one, so
+  we can't just copy the DLL into our own repo and hand it out ourselves. Two
+  ways around that:
+  - The launcher **downloads it straight from the GitHub repo** on demand,
+    instead of bundling it — never our own copy, just automating what the user
+    would click themselves.
+  - Or the **user provides the DLL themselves** (downloads it manually, points
+    the launcher at it) — same "bring your own file" pattern already used
+    elsewhere in the project.
+- **The >32-thread crash fix this build adds might not even be relevant to us.**
+  Still checking whether that specific fix applies under Wine/Proton or if it's
+  a Windows-only quirk — undecided, needs more digging before it factors into
+  the choice.
+- Still need to confirm exactly how the DLL is meant to be installed/activated
+  (just drop the file in, or does it need a config file too).
 
-Two pieces in one DLL:
+## Plan B — build our own DLL
 
-1. **Proxy:** the DLL is named `D3DX9_42.dll` and sits in the game folder. Windows
-   (and Wine) prefer the executable's directory in the DLL search order, so the
-   hook **shadows** the real `D3DX9_42.dll` from `system32` without touching the
-   system. All its functions (329 exports, 32-bit) re-forward to the real DLL: the
-   game runs normally, just with our `DllMain` loaded.
-2. **Patch:** on load, the DLL scans a fixed range of the game's module image for
-   the `verify_signature` call site and overwrites the byte that decides whether
-   the signature was valid, forcing the result to "valid".
+Write and inject our own proxy DLL that patches the signature check ourselves,
+based on how the original enabler works.
 
-### Memory values touched
+**Pros:** full control, no dependency on someone else's project staying online
+or maintained, no license question at all.
 
-- **Just 2 bytes.** The DLL locates `verify_signature`'s call site and overwrites
-  the 2 bytes that store the verification result (a 2-byte `mov` that leaves the
-  result "invalid") with the 2 bytes equivalent to "valid". The following `ret`
-  stays intact.
-- **How it's found:** a pattern scan over the game's module image. The pattern is
-  the `verify_signature` call bytes, with the 4-byte call displacement as a
-  wildcard. The scan range is hardcoded to the game's expected module base (no
-  ASLR on that image) — proven under Wine on the author's system.
-- **Idempotent:** re-writing the same 2 bytes is a no-op.
-- The write uses page-protection → copy → instruction-cache flush → restore. A
-  standard in-process patching technique.
+**Cons:** building a DLL like this from scratch is real work — cross-compiling
+with mingw-w64, finding the right memory pattern to patch, getting the injection
+right, testing it actually works on the real game. Basically redoing what
+already exists elsewhere, just to sidestep a license gray area that's probably
+low-risk in practice anyway.
 
-## Implementation plan
+## Decision
 
-**One injected proxy DLL, shared with the no-cable patch (phase 4).** No ptrace,
-no external processes, no `launcher.exe -> game.exe` chains.
-
-- Inject the proxy DLL (`D3DX9_42.dll`, 32-bit, 329 exports re-forwarding to the
-  real one in `system32`) into the game's process.
-- On load, the DLL **reads environment variables** the launcher set before `exec`:
-  `RS_PATCH_CDLC` (on/off) decides whether to apply the signature patch.
-- If `RS_PATCH_CDLC=1` it performs the `verify_signature` memory write above;
-  otherwise it does nothing but forward.
-- The DLL also reads the no-cable env vars (`RS_PATCH_NO_CABLE`, `RS_PATCH_VID`,
-  `RS_PATCH_PID`) — same DLL, both patches independent.
-
-### Env var contract (launcher ↔ DLL)
-
-| Env var | Value | Effect |
-|---|---|---|
-| `RS_PATCH_CDLC` | `"1"` / `"0"` | Apply the `verify_signature` CDLC patch |
-| `RS_PATCH_NO_CABLE` | `"1"` / `"0"` | Apply the no-cable memory write (see `NoCablePatch.md`) |
-| `RS_PATCH_VID` | 4 hex chars, e.g. `"301A"` | VID to write (no-cable) |
-| `RS_PATCH_PID` | 4 hex chars, e.g. `"5555"` | PID to write (no-cable) |
-
-Rules:
-- The launcher validates before injecting: `RS_PATCH_NO_CABLE=1` requires valid
-  VID/PID; unset or unknown values = disabled.
-- No patch requested → the launcher doesn't even inject the DLL.
-- The patches are independent: CDLC without no-cable and vice versa.
-
-### Injection
-
-- The DLL is placed in the game folder (shadowing the `system32` one) — that's how
-  it worked in the author's install, without `WINEDLLOVERRIDES`. Adding
-  `WINEDLLOVERRIDES` is optional (belt-and-suspenders).
-- The launcher manages the DLL's presence: it copies it in when at least one patch
-  is enabled, and backs up / restores the game's original `D3DX9_42.dll` so no
-  orphan hooks are left when both patches are disabled.
-
-### Profile data
-
-The patch lives under `patches.cdlc` in the profile JSON:
-- `enabled` (bool): whether the patch is active.
-
-### Integration with `launch`
-
-Right before the phase-3 `exec`, in order:
-1. **Verify `game_id`**: profile must be `rocksmith2014`; any other game never
-   receives this patch.
-2. **Skip when disabled**: `patches.cdlc.enabled == false` → nothing to do.
-3. **Apply**: set env vars → inject the DLL.
-4. **Log everything** to `logs/rocklaunch.log`.
-
-## Credits
-
-Inspiration: [phobos2077/RS2014-CDLC-Installer](https://github.com/phobos2077/RS2014-CDLC-Installer)
-— the `RSCDLCEnabler` project. Reimplemented at launcher level per the project's
-design principles; no forks or external executables.
+Not made yet. Leaning would depend on how annoying Plan A's open questions turn
+out to be once actually investigated — if the download-on-demand approach is
+clean and the DLL just works, no reason to redo that work in Plan B.

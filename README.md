@@ -9,7 +9,7 @@ A Linux launcher for Rocksmith 2014 Edition Remastered that takes care of the an
 - **Locate the game** automatically via Steam, or point it to any manual installation (Steam and non-Steam are equally supported).
 - **Manage Proton/Wine runtimes** — detects runtimes already installed on your system; on-demand GE-Proton downloads are planned.
 - **Launch the game** from a clean prefix with no manual intervention.
-- **Apply patches out of the box** — the no-cable patch, CDLC management, and pre-launch audio setup are implemented directly by the launcher, reusing methods inspired by the relevant projects (see [Credits](#credits)).
+- **Apply patches out of the box** — the no-cable patch and pre-launch audio setup are implemented directly by the launcher, reusing methods inspired by the relevant projects; the CDLC enabler approach is under evaluation (see [Credits](#credits)).
 - **Manage CDLC** — toggle the CDLC patch on/off, and manage your custom songs (view, remove, import) directly from the launcher.
 
 All you need is the launcher and the game — nothing else. Steam and non-Steam games are supported on equal footing; for a non-Steam install you simply point the launcher at your game directory.
@@ -26,8 +26,8 @@ The project is built in small, self-contained phases — each one is usable on i
 | 1 | ✅ Profile management and manual game paths | Phase 2/3 |
 | 2 | ✅ Proton/Wine runtime manager (local discovery and per-profile selection) | Phase 3 |
 | 3 | ✅ Launch the game from a clean prefix (no patches/audio yet) | Phase 4 |
-| 4 | No-cable patch: guitar input as the original Real Tone cable (toggleable) | Phase 6 |
-| 5 | CDLC patch (enable/disable) | Phase 6 |
+| 4 | No-cable patch: enable the game's Direct Connect input mode so any audio input works (toggleable) | Phase 6 |
+| 5 | CDLC patch (enable/disable) — method under evaluation | Phase 6 |
 | 6 | First Qt/QML GUI | Phase 7 |
 | 7 | CDLC songs manager (CLI `dlc list/add/delete` + GUI) | — |
 | 8 | Runtime downloader (`runtime install` — fetch GE-Proton from GitHub releases) | — |
@@ -52,27 +52,24 @@ full command list.
 
 ## Patches
 
-Patches are per-profile, toggleable, and apply **just before the game launches** —
-they are runtime-only and never modify the game install. Both are implemented by
-the launcher itself (methods inspired by the projects in [Credits](#credits)), so
-you only provide the game.
+Patches are per-profile and toggleable. They apply **just before the game
+launches**, are game-specific (a profile of another game never receives Rocksmith
+patches), and each has a design document explaining the method and what was tried:
 
-Each patch has a design document explaining the method, what was tried, and how it
-will be applied:
-
-- **No Cable Patch** — makes a regular audio input (guitar line-in, audio
-  interface, mic) look like the original Real Tone cable inside the game. The
-  launcher resolves the chosen input to its VID/PID and the injected DLL patches
-  the expected values in the game's memory.
+- **No Cable Patch** — enables the game's built-in **Input > Direct Connect** mode
+  with a one-time, reversible edit to the game's `cache.psarc` (a data flag, not
+  code). Once enabled, the game lets you pick any audio input (guitar line-in,
+  interface, mic) directly in its own menu — no DLL, no VID/PID spoofing.
   📄 **[NoCablePatch.md](./NoCablePatch.md)**
-- **CDLC Patch** — lets the game load custom songs (`.psarc`) by patching the
-  signature check. Independent of the no-cable patch: you can enable one without
-  the other.
+- **CDLC Patch** — lets the game load custom songs (`.psarc`) by getting past the
+  signature check. **Method not decided yet**: options under evaluation are managing
+  a maintained third-party enabler DLL (downloaded on demand or provided by the
+  user) or building our own. Independent of the no-cable patch — you can enable one
+  without the other.
   📄 **[CustomDLC.md](./CustomDLC.md)**
 
-Both patches share the same injected proxy DLL and a single env-var protocol
-(`RS_PATCH_*`) between the launcher and the DLL — the launcher decides what to
-apply before launching, and the DLL applies exactly that.
+The two patches are independent and share no infrastructure — the no-cable patch
+involves no DLL at all.
 
 ## Architecture & Development
 
@@ -87,7 +84,7 @@ Want to contribute? All the details live in two documents so this README doesn't
 - Steam and non-Steam installations are supported on equal footing — for non-Steam games you simply point the launcher at the game directory. The launcher only checks that the expected files exist.
 - Each game installation belongs to exactly one profile. Patches, runtime choice, and
   prefix state are profile-specific; launcher-wide preferences remain global.
-- The launcher reimplements the relevant methods (no-cable patch, CDLC management, pre-launch audio setup) itself, inspired by existing projects — no `launcher.exe -> game.exe` chains, and no extra files from the user. You only provide the game.
+- The launcher reimplements the relevant methods (no-cable patch, pre-launch audio setup) itself, inspired by existing projects — no `launcher.exe -> game.exe` chains, and no extra files from the user. **CDLC is the one exception under evaluation:** the enabler binary may be downloaded from upstream on demand or provided by the user, since its upstream has no license (see [CustomDLC.md](./CustomDLC.md)).
 - Detection is preferred over download: if you have Steam, use the Proton/GE-Proton already installed before implementing a downloader.
 
 ## Building
@@ -120,5 +117,7 @@ and reimplemented from scratch. See [Credits](#credits).
 
 The methods implemented by this launcher are inspired by the following projects. Links are added as each method is integrated:
 
-- **[NoCableLauncher](https://github.com/Maxx53/NoCableLauncher)** — no-cable patch
-- **[RSCDLCInstaller](https://github.com/rscustom/RSCDLCEnabler)** — CDLC management
+- **[RSMods](https://github.com/Lovrom8/RSMods)** — Direct Connect Mode (no-cable patch)
+- **[RSCDLCEnabler](https://github.com/geneccx/RSCDLCEnabler)** — CDLC enabler (original concept)
+- **[RSCDLCEnabler-TooManyCoresFix](https://github.com/Lovrom8/RSCDLCEnabler-TooManyCoresFix)** — maintained CDLC enabler fork (method under evaluation; no license — downloaded on demand or user-provided, never redistributed)
+- **[RS2014-CDLC-Installer](https://github.com/phobos2077/RS2014-CDLC-Installer)** — CDLC management

@@ -47,7 +47,7 @@ Key abstractions, defined from phase 0:
 implemented and tested. `SteamSource` is intentionally separate future work until a
 Steam installation is available for validation.
 
-The launcher reimplements the methods of relevant projects (no-cable, CDLC, audio) at launcher level — no literal forks, no `launcher.exe -> game.exe` chains, no files required from the user. Inspiration is credited in the README (`# Credits`).
+The launcher reimplements the methods of relevant projects (no-cable, audio) at launcher level — no literal forks, no `launcher.exe -> game.exe` chains, no files required from the user. **CDLC is the exception under evaluation:** the enabler binary may be downloaded on demand from upstream or provided by the user (its upstream has no license), never bundled or redistributed. Inspiration is credited in the README (`# Credits`).
 
 Data lives under XDG-friendly paths:
 
