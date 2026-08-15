@@ -1,5 +1,6 @@
 add_library(rocklaunch-core
     src/config_store.cpp
+    src/launch.cpp
     src/logger.cpp
     src/manual_source.cpp
     src/rocksmith2014_profile.cpp

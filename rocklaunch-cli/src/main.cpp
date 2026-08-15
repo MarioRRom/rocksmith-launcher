@@ -1,9 +1,11 @@
 #include "rocklaunch/core/config_store.h"
+#include "rocklaunch/core/launch.h"
 #include "rocklaunch/core/logger.h"
 #include "rocklaunch/core/manual_source.h"
 #include "rocklaunch/core/rocksmith2014_profile.h"
 #include "rocklaunch/core/runtimes/runtime_manager.h"
 
+#include <cstring>
 #include <exception>
 #include <iomanip>
 #include <iostream>
@@ -27,6 +29,7 @@ void PrintUsage()
               << "  set-path <profile> <path>          Validate and save a game installation.\n"
               << "  runtime list                       List available Wine and Proton runtimes.\n"
               << "  runtime set <profile> <runtime>    Assign an available runtime to a profile.\n"
+              << "  launch <profile>                   Launch the profile's game in its prefix.\n"
               << "  --help, -h          Show this help message.\n"
               << "  --version           Show the launcher version.\n";
 }
@@ -53,6 +56,7 @@ int CreateProfile(const std::string &profileId,
         rocklaunch::ProfileConfig config;
         config.id = profileId;
         config.gameId = gameProfile.Id();
+        config.prefixDir = rocklaunch::ConfigStore::DefaultDataDir() / "prefixes" / profileId;
         configStore.SaveProfile(config);
         std::cout << "Created profile: " << profileId << '\n';
         return 0;
@@ -72,6 +76,7 @@ int ShowProfile(const std::string &profileId, rocklaunch::ConfigStore &configSto
     rocklaunch::ProfileConfig config = configStore.LoadProfile(profileId);
     std::cout << "Profile: " << config.id << '\n'
               << "Game: " << config.gameId << '\n'
+              << "Prefix path: " << config.prefixDir << '\n'
               << "Runtime: " << (config.runtimeId.empty() ? "not assigned" : config.runtimeId) << '\n'
               << "Install path: ";
     if (config.installDir.empty()) {
@@ -190,6 +195,61 @@ int ListProfiles(rocklaunch::ConfigStore &configStore)
     return 0;
 }
 
+// Launch
+
+int LaunchProfile(const std::string &profileId,
+                  rocklaunch::ConfigStore &configStore,
+                  const rocklaunch::Rocksmith2014Profile &gameProfile,
+                  const rocklaunch::RuntimeManager &runtimeManager)
+{
+    if (!configStore.ProfileExists(profileId)) {
+        std::cerr << "Profile not found: " << profileId << '\n';
+        return 1;
+    }
+
+    rocklaunch::ProfileConfig config = configStore.LoadProfile(profileId);
+
+    // The game the profile belongs to must match the game we are about to launch.
+    if (config.gameId != gameProfile.Id()) {
+        std::cerr << "Profile " << profileId << " is for game " << config.gameId
+                  << ", which this build does not support.\n";
+        return 1;
+    }
+
+    if (config.installDir.empty()) {
+        std::cerr << "Profile " << profileId << " has no install path. "
+                  << "Use set-path <profile> <path> first.\n";
+        return 1;
+    }
+
+    if (config.runtimeId.empty()) {
+        std::cerr << "Profile " << profileId << " has no runtime. "
+                  << "Use runtime set <profile> <runtime> first.\n";
+        return 1;
+    }
+
+    std::optional<rocklaunch::Runtime> runtime = runtimeManager.Find(config.runtimeId);
+    if (!runtime.has_value()) {
+        std::cerr << "Runtime not found: " << config.runtimeId << '\n';
+        return 1;
+    }
+
+    rocklaunch::LaunchCommand launch = rocklaunch::BuildLaunchCommand(config, *runtime, gameProfile);
+
+    std::vector<std::string> warnings = rocklaunch::EnsurePrefix(config.prefixDir, *runtime);
+    for (const std::string &warning : warnings) {
+        std::cerr << "Warning: " << warning << '\n';
+    }
+
+    if (!rocklaunch::ExecLaunchCommand(launch)) {
+        std::cerr << "Failed to start '" << launch.command.front() << "': "
+                  << std::strerror(errno) << '\n';
+        return 1;
+    }
+
+    return 0;
+}
+
 } // namespace
 
 // Entry point
@@ -232,6 +292,11 @@ int main(int argc, char *argv[])
         if (argument == "runtime" && argc == 5 && std::string_view(argv[2]) == "set") {
             logger.Info("Assigning a runtime to a profile");
             return SetRuntime(argv[3], argv[4], configStore, runtimeManager);
+        }
+
+        if (argument == "launch" && argc == 3) {
+            logger.Info("Launching a profile");
+            return LaunchProfile(argv[2], configStore, profile, runtimeManager);
         }
 
         if (argument == "profile" && argc == 3 && std::string_view(argv[2]) == "list") {

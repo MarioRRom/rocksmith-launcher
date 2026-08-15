@@ -126,6 +126,7 @@ ProfileConfig ConfigStore::LoadProfile(const std::string &profileId) const
     profile.gameId = json.value("game_id", "rocksmith2014");
     profile.installDir = json.value("install_dir", "");
     profile.runtimeId = json.value("runtime_id", "");
+    profile.prefixDir = json.value("prefix_dir", "");
     profile.patches = json.value("patches", std::map<std::string, bool>());
     return profile;
 }
@@ -143,6 +144,7 @@ void ConfigStore::SaveProfile(const ProfileConfig &profile) const
         { "game_id", profile.gameId },
         { "install_dir", profile.installDir.string() },
         { "runtime_id", profile.runtimeId },
+        { "prefix_dir", profile.prefixDir.string() },
         { "patches", profile.patches },
     };
 
@@ -195,6 +197,21 @@ fs::path ConfigStore::DefaultConfigDir()
     }
 
     throw std::runtime_error("Neither XDG_CONFIG_HOME nor HOME is set");
+}
+
+fs::path ConfigStore::DefaultDataDir()
+{
+    fs::path dataHome = EnvironmentPath("XDG_DATA_HOME");
+    if (!dataHome.empty()) {
+        return dataHome / "rocksmith-launcher";
+    }
+
+    fs::path homeDir = EnvironmentPath("HOME");
+    if (!homeDir.empty()) {
+        return homeDir / ".local" / "share" / "rocksmith-launcher";
+    }
+
+    throw std::runtime_error("Neither XDG_DATA_HOME nor HOME is set");
 }
 
 } // namespace rocklaunch

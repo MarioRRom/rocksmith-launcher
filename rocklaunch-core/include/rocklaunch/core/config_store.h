@@ -24,6 +24,7 @@ struct ProfileConfig
     std::string gameId;
     fs::path installDir;
     std::string runtimeId;
+    fs::path prefixDir;
     std::map<std::string, bool> patches;
 };
 
@@ -47,6 +48,7 @@ public:
     bool DeleteProfile(const std::string &profileId) const;
 
     static fs::path DefaultConfigDir();
+    static fs::path DefaultDataDir();
 
 private:
     // Keeps profile ids filesystem-safe; they are used to build file names.
