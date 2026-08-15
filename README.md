@@ -50,6 +50,30 @@ Profiles are created with `profile new` (auto-named `<game>-<n>` when no name is
 given) and pointed at a game directory with `set-path`. See the CLI help for the
 full command list.
 
+## Patches
+
+Patches are per-profile, toggleable, and apply **just before the game launches** —
+they are runtime-only and never modify the game install. Both are implemented by
+the launcher itself (methods inspired by the projects in [Credits](#credits)), so
+you only provide the game.
+
+Each patch has a design document explaining the method, what was tried, and how it
+will be applied:
+
+- **No Cable Patch** — makes a regular audio input (guitar line-in, audio
+  interface, mic) look like the original Real Tone cable inside the game. The
+  launcher resolves the chosen input to its VID/PID and the injected DLL patches
+  the expected values in the game's memory.
+  📄 **[NoCablePatch.md](./NoCablePatch.md)**
+- **CDLC Patch** — lets the game load custom songs (`.psarc`) by patching the
+  signature check. Independent of the no-cable patch: you can enable one without
+  the other.
+  📄 **[CustomDLC.md](./CustomDLC.md)**
+
+Both patches share the same injected proxy DLL and a single env-var protocol
+(`RS_PATCH_*`) between the launcher and the DLL — the launcher decides what to
+apply before launching, and the DLL applies exactly that.
+
 ## Architecture & Development
 
 Want to contribute? All the details live in two documents so this README doesn't turn into a wall of text:
