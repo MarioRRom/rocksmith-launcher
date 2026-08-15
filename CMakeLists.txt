@@ -44,4 +44,12 @@ if (BUILD_TESTING)
             -DTEST_ROOT=${CMAKE_BINARY_DIR}/profile-lifecycle-test
             -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/profile_lifecycle.cmake
     )
+
+    add_test(
+        NAME rocklaunch-cli-runtime-manager
+        COMMAND ${CMAKE_COMMAND}
+            -DROCKLAUNCH_CLI=$<TARGET_FILE:rocklaunch-cli>
+            -DTEST_ROOT=${CMAKE_BINARY_DIR}/runtime-manager-test
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_manager.cmake
+    )
 endif()

@@ -40,6 +40,8 @@ Key abstractions, defined from phase 0:
 - `IGameProfile` — `id()`, `validate_install()`, `required_env(LaunchContext)`, `executable()`.
 - `ILaunchPatch` — `id()`, `is_enabled(Profile)`, `apply(prefix_dir, install_dir)`. Provisional — the final patch interface is decided in phases 4/5 (possibly split into `ICablePatch`/`ICDLCPatch`).
 - `GameSource` — locates the game (`SteamSource` via `libraryfolders.vdf`, `ManualSource` by path). No scattered conditional logic.
+- `IRuntimeSource` — discovers local Wine/Proton runtimes. `RuntimeManager` merges
+  sources and owns runtime lookup; sources never mutate profile configuration.
 
 **Current phase 1 scope:** profile lifecycle and manually assigned paths are
 implemented and tested. `SteamSource` is intentionally separate future work until a

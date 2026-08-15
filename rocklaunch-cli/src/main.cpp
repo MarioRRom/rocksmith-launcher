@@ -2,8 +2,10 @@
 #include "rocklaunch/core/logger.h"
 #include "rocklaunch/core/manual_source.h"
 #include "rocklaunch/core/rocksmith2014_profile.h"
+#include "rocklaunch/core/runtimes/runtime_manager.h"
 
 #include <exception>
+#include <iomanip>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -23,6 +25,8 @@ void PrintUsage()
               << "  profile show <profile>             Show a profile's settings.\n"
               << "  profile delete <profile>           Delete a profile configuration.\n"
               << "  set-path <profile> <path>          Validate and save a game installation.\n"
+              << "  runtime list                       List available Wine and Proton runtimes.\n"
+              << "  runtime set <profile> <runtime>    Assign an available runtime to a profile.\n"
               << "  --help, -h          Show this help message.\n"
               << "  --version           Show the launcher version.\n";
 }
@@ -68,6 +72,7 @@ int ShowProfile(const std::string &profileId, rocklaunch::ConfigStore &configSto
     rocklaunch::ProfileConfig config = configStore.LoadProfile(profileId);
     std::cout << "Profile: " << config.id << '\n'
               << "Game: " << config.gameId << '\n'
+              << "Runtime: " << (config.runtimeId.empty() ? "not assigned" : config.runtimeId) << '\n'
               << "Install path: ";
     if (config.installDir.empty()) {
         std::cout << "not assigned\n";
@@ -75,6 +80,49 @@ int ShowProfile(const std::string &profileId, rocklaunch::ConfigStore &configSto
         std::cout << config.installDir << '\n';
     }
 
+    return 0;
+}
+
+// Runtime commands
+
+int ListRuntimes(const rocklaunch::RuntimeManager &runtimeManager)
+{
+    std::vector<rocklaunch::Runtime> runtimes = runtimeManager.List();
+    if (runtimes.empty()) {
+        std::cout << "No Wine or Proton runtimes were found.\n";
+        return 0;
+    }
+
+    std::cout << std::left << std::setw(28) << "id" << std::setw(8) << "type"
+              << std::setw(10) << "source" << "executable\n";
+    for (const rocklaunch::Runtime &runtime : runtimes) {
+        std::cout << std::setw(28) << runtime.id << std::setw(8)
+                  << rocklaunch::RuntimeTypeName(runtime.type) << std::setw(10) << runtime.source
+                  << runtime.executable.string() << '\n';
+    }
+
+    return 0;
+}
+
+int SetRuntime(const std::string &profileId,
+               const std::string &runtimeId,
+               rocklaunch::ConfigStore &configStore,
+               const rocklaunch::RuntimeManager &runtimeManager)
+{
+    if (!configStore.ProfileExists(profileId)) {
+        std::cerr << "Profile not found: " << profileId << '\n';
+        return 1;
+    }
+
+    if (!runtimeManager.Find(runtimeId).has_value()) {
+        std::cerr << "Runtime not found: " << runtimeId << '\n';
+        return 1;
+    }
+
+    rocklaunch::ProfileConfig config = configStore.LoadProfile(profileId);
+    config.runtimeId = runtimeId;
+    configStore.SaveProfile(config);
+    std::cout << "Assigned runtime " << runtimeId << " to profile " << profileId << '\n';
     return 0;
 }
 
@@ -153,6 +201,7 @@ int main(int argc, char *argv[])
         logger.Info("rocklaunch-cli started");
         rocklaunch::ConfigStore configStore;
         rocklaunch::Rocksmith2014Profile profile;
+        rocklaunch::RuntimeManager runtimeManager = rocklaunch::RuntimeManager::CreateDefault();
 
         if (argc == 1) {
             PrintUsage();
@@ -173,6 +222,16 @@ int main(int argc, char *argv[])
         if (argument == "set-path" && argc == 4) {
             logger.Info("Saving a manual game installation");
             return SetPath(argv[2], argv[3], configStore, profile);
+        }
+
+        if (argument == "runtime" && argc == 3 && std::string_view(argv[2]) == "list") {
+            logger.Info("Listing available runtimes");
+            return ListRuntimes(runtimeManager);
+        }
+
+        if (argument == "runtime" && argc == 5 && std::string_view(argv[2]) == "set") {
+            logger.Info("Assigning a runtime to a profile");
+            return SetRuntime(argv[3], argv[4], configStore, runtimeManager);
         }
 
         if (argument == "profile" && argc == 3 && std::string_view(argv[2]) == "list") {

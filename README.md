@@ -7,7 +7,7 @@
 A Linux launcher for Rocksmith 2014 Edition Remastered that takes care of the annoying parts of running the game under Proton/Wine:
 
 - **Locate the game** automatically via Steam, or point it to any manual installation (Steam and non-Steam are equally supported).
-- **Manage Proton/Wine runtimes** — detects runtimes already installed on your system and can download GE-Proton versions on demand.
+- **Manage Proton/Wine runtimes** — detects runtimes already installed on your system; on-demand GE-Proton downloads are planned.
 - **Launch the game** from a clean prefix with no manual intervention.
 - **Apply patches out of the box** — the no-cable patch, CDLC management, and pre-launch audio setup are implemented directly by the launcher, reusing methods inspired by the relevant projects (see [Credits](#credits)).
 - **Manage CDLC** — toggle the CDLC patch on/off, and manage your custom songs (view, remove, import) directly from the launcher.
@@ -24,17 +24,18 @@ The project is built in small, self-contained phases — each one is usable on i
 |---|---|---|
 | 0 | ✅ Project skeleton (CMake, core library + CLI, `IGameProfile`, logging) | — |
 | 1 | ✅ Profile management and manual game paths | Phase 2/3 |
-| 2 | Proton/Wine runtime manager (list, install GE-Proton) | Phase 3 |
+| 2 | ✅ Proton/Wine runtime manager (local discovery and per-profile selection) | Phase 3 |
 | 3 | Launch the game from a clean prefix (no patches/audio yet) | Phase 4 |
 | 4 | No-cable patch: guitar input as the original Real Tone cable (toggleable) | Phase 6 |
 | 5 | CDLC patch (enable/disable) | Phase 6 |
 | 6 | First Qt/QML GUI | Phase 7 |
 | 7 | CDLC songs manager (CLI `dlc list/add/delete` + GUI) | — |
+| 8 | Runtime downloader (`runtime install` — fetch GE-Proton from GitHub releases) | — |
+| 9 | Steam game auto-detection (`SteamSource` via `libraryfolders.vdf`) | — |
 
-> **Steam detection:** this is intentionally separate future work. Phase 1 manages
-> profiles and manually assigned game paths only; Steam auto-detection via
-> `libraryfolders.vdf` will be implemented when a Steam installation is available
-> for validation.
+Phases 8 and 9 are the least urgent: the typical user already has Proton installed
+(via ProtonUp-Qt) and runs the game outside Steam, so they are not needed by any
+other phase.
 
 ## Profiles
 
@@ -45,10 +46,9 @@ cannot be assigned to more than one profile.
 The launcher configuration is separate from profiles and only stores launcher-wide
 settings. Future launches use the explicit form `rocklaunch-cli launch <profile>`.
 
-The current CLI lifecycle is `profile new` (auto-named `<game>-<n>` if no name is given),
-then `set-path <profile> <path>`. Use `profile show <profile>` to inspect an assignment,
-`profile list` to view all profiles, and `profile delete <profile>` to remove a profile
-configuration.
+Profiles are created with `profile new` (auto-named `<game>-<n>` when no name is
+given) and pointed at a game directory with `set-path`. See the CLI help for the
+full command list.
 
 ## Architecture & Development
 
@@ -83,17 +83,6 @@ Configuration and logs are created automatically on first run under
 ```sh
 # Show all commands
 ./build/rocklaunch-cli/rocklaunch-cli --help
-
-# Create a profile (auto-named rocksmith2014-1 when no name is given)
-./build/rocklaunch-cli/rocklaunch-cli profile new
-
-# Point a profile at a game installation (Steam or non-Steam; validates the game files)
-./build/rocklaunch-cli/rocklaunch-cli set-path rocksmith2014-1 /path/to/Rocksmith2014
-
-# Inspect, list, or delete profiles
-./build/rocklaunch-cli/rocklaunch-cli profile show rocksmith2014-1
-./build/rocklaunch-cli/rocklaunch-cli profile list
-./build/rocklaunch-cli/rocklaunch-cli profile delete rocksmith2014-1
 ```
 
 ## License

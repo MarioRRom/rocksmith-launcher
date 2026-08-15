@@ -3,6 +3,11 @@ add_library(rocklaunch-core
     src/logger.cpp
     src/manual_source.cpp
     src/rocksmith2014_profile.cpp
+    src/runtimes/managed_runtime_source.cpp
+    src/runtimes/runtime.cpp
+    src/runtimes/runtime_manager.cpp
+    src/runtimes/steam_runtime_source.cpp
+    src/runtimes/system_wine_source.cpp
 )
 
 add_library(rocklaunch::core ALIAS rocklaunch-core)
