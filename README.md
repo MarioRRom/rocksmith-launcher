@@ -25,7 +25,7 @@ The project is built in small, self-contained phases — each one is usable on i
 | 0 | ✅ Project skeleton (CMake, core library + CLI, `IGameProfile`, logging) | — |
 | 1 | ✅ Profile management and manual game paths | Phase 2/3 |
 | 2 | ✅ Proton/Wine runtime manager (local discovery and per-profile selection) | Phase 3 |
-| 3 | Launch the game from a clean prefix (no patches/audio yet) | Phase 4 |
+| 3 | ✅ Launch the game from a clean prefix (no patches/audio yet) | Phase 4 |
 | 4 | No-cable patch: guitar input as the original Real Tone cable (toggleable) | Phase 6 |
 | 5 | CDLC patch (enable/disable) | Phase 6 |
 | 6 | First Qt/QML GUI | Phase 7 |
