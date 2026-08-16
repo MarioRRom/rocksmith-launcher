@@ -8,23 +8,23 @@ namespace rocklaunch
 
 namespace fs = std::filesystem;
 
-enum class RuntimeType
+enum class RunnerType
 {
     Wine,
     Proton,
 };
 
-struct Runtime
+struct Runner
 {
     std::string id;
     std::string name;
-    RuntimeType type;
+    RunnerType type;
     std::string source;
     fs::path rootDir;
     fs::path executable;
 };
 
-std::string RuntimeTypeName(RuntimeType type);
-std::string SanitizeRuntimeId(const std::string &name);
+std::string RunnerTypeName(RunnerType type);
+std::string SanitizeRunnerId(const std::string &name);
 
 } // namespace rocklaunch

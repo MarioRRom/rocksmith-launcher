@@ -20,6 +20,14 @@ fs::path EnvironmentPath(const char *name)
     return value != nullptr ? fs::path(value) : fs::path();
 }
 
+// True when path lives inside root (or is root itself). Used to keep deletions
+// inside the launcher-managed directories instead of arbitrary user paths.
+bool IsUnder(const fs::path &path, const fs::path &root)
+{
+    const fs::path relative = path.lexically_relative(root);
+    return !relative.empty() && relative.native().rfind("..", 0) != 0;
+}
+
 } // namespace
 
 ConfigStore::ConfigStore(fs::path configDir)
@@ -123,11 +131,22 @@ ProfileConfig ConfigStore::LoadProfile(const std::string &profileId) const
 
     ProfileConfig profile;
     profile.id = json.at("id").get<std::string>();
-    profile.gameId = json.value("game_id", "rocksmith2014");
+    profile.gameId = json.value("game_id", "rocksmith2014remastered");
     profile.installDir = json.value("install_dir", "");
-    profile.runtimeId = json.value("runtime_id", "");
+    profile.runnerId = json.value("runner_id", "");
     profile.prefixDir = json.value("prefix_dir", "");
-    profile.patches = json.value("patches", std::map<std::string, bool>());
+    if (json.contains("patches") && json["patches"].is_object()) {
+        for (const auto &entry : json["patches"].items()) {
+            PatchState state;
+            state.enabled = entry.value().value("enabled", false);
+            if (entry.value().contains("settings") && entry.value()["settings"].is_object()) {
+                state.settings =
+                    entry.value()["settings"].get<std::map<std::string, std::string>>();
+            }
+            profile.patches[entry.key()] = state;
+        }
+    }
+
     return profile;
 }
 
@@ -139,13 +158,22 @@ void ConfigStore::SaveProfile(const ProfileConfig &profile) const
 
     fs::create_directories(ProfilePath(profile.id).parent_path());
 
+    nlohmann::json patchesJson = nlohmann::json::object();
+    for (const auto &entry : profile.patches) {
+        nlohmann::json patchJson = { { "enabled", entry.second.enabled } };
+        if (!entry.second.settings.empty()) {
+            patchJson["settings"] = entry.second.settings;
+        }
+        patchesJson[entry.first] = patchJson;
+    }
+
     nlohmann::json json = {
         { "id", profile.id },
         { "game_id", profile.gameId },
         { "install_dir", profile.installDir.string() },
-        { "runtime_id", profile.runtimeId },
+        { "runner_id", profile.runnerId },
         { "prefix_dir", profile.prefixDir.string() },
-        { "patches", profile.patches },
+        { "patches", patchesJson },
     };
 
     std::ofstream output(ProfilePath(profile.id));
@@ -158,13 +186,39 @@ void ConfigStore::SaveProfile(const ProfileConfig &profile) const
 
 bool ConfigStore::DeleteProfile(const std::string &profileId) const
 {
+    fs::path profilePath = ProfilePath(profileId);
     std::error_code error;
-    bool removed = fs::remove(ProfilePath(profileId), error);
+    bool exists = fs::is_regular_file(profilePath, error);
     if (error) {
         throw std::runtime_error("Unable to delete profile: " + profileId);
     }
 
+    std::optional<ProfileConfig> profile;
+    if (exists) {
+        profile = LoadProfile(profileId);
+    }
+
+    bool removed = fs::remove(profilePath, error);
+    if (error) {
+        throw std::runtime_error("Unable to delete profile: " + profileId);
+    }
+
+    if (removed && profile.has_value()) {
+        RemovePrefixDir(profile->prefixDir);
+    }
+
     return removed;
+}
+
+void ConfigStore::RemovePrefixDir(const fs::path &prefixDir) const
+{
+    fs::path prefixesDir = DefaultDataDir() / "prefixes";
+    std::error_code error;
+    if (!IsUnder(prefixDir, prefixesDir) || !fs::is_directory(prefixDir, error)) {
+        return;
+    }
+
+    fs::remove_all(prefixDir, error);
 }
 
 void ConfigStore::ValidateProfileId(const std::string &profileId) const

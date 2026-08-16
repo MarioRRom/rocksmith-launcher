@@ -3,12 +3,16 @@ add_library(rocklaunch-core
     src/launch.cpp
     src/logger.cpp
     src/manual_source.cpp
-    src/rocksmith2014_profile.cpp
-    src/runtimes/managed_runtime_source.cpp
-    src/runtimes/runtime.cpp
-    src/runtimes/runtime_manager.cpp
-    src/runtimes/steam_runtime_source.cpp
-    src/runtimes/system_wine_source.cpp
+    src/patches/cdlc_patch.cpp
+    src/patches/direct_connect_patch.cpp
+    src/patches/patch.cpp
+    src/patches/patch_manager.cpp
+    src/rocksmith2014_remastered_profile.cpp
+    src/runners/managed_runner_source.cpp
+    src/runners/runner.cpp
+    src/runners/runner_manager.cpp
+    src/runners/steam_runner_source.cpp
+    src/runners/system_wine_source.cpp
 )
 
 add_library(rocklaunch::core ALIAS rocklaunch-core)

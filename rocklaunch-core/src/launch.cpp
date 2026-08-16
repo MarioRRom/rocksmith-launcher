@@ -51,26 +51,26 @@ int RunProcess(const std::vector<std::string> &command, const std::vector<std::s
 
 // The wine binary used to configure a prefix. GE-Proton ships under files/;
 // stock Steam Proton uses dist/.
-fs::path WineBinaryFor(const Runtime &runtime)
+fs::path WineBinaryFor(const Runner &runner)
 {
-    if (runtime.type == RuntimeType::Wine) {
-        return runtime.executable;
+    if (runner.type == RunnerType::Wine) {
+        return runner.executable;
     }
 
     for (const fs::path &layout : { "files", "dist" }) {
-        fs::path candidate = runtime.rootDir / layout / "bin" / "wine";
+        fs::path candidate = runner.rootDir / layout / "bin" / "wine";
         std::error_code error;
         if (fs::is_regular_file(candidate, error)) {
             return candidate;
         }
     }
 
-    return runtime.rootDir / "dist" / "bin" / "wine";
+    return runner.rootDir / "dist" / "bin" / "wine";
 }
 
 } // namespace
 
-std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runtime &runtime)
+std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &runner)
 {
     std::vector<std::string> warnings;
     std::error_code error;
@@ -79,20 +79,21 @@ std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runtime &
         throw std::runtime_error("Unable to create prefix: " + prefixDir.string());
     }
 
-    fs::path wine = WineBinaryFor(runtime);
+    fs::path wine = WineBinaryFor(runner);
     if (!fs::is_regular_file(wine, error)) {
         warnings.emplace_back("wine binary not found at " + wine.string()
-                              + "; dsound=alsa was not applied");
+                              + "; Audio=alsa was not applied");
         return warnings;
     }
 
-    // dsound=alsa lets the game see any audio input as the Real Tone cable. Applied on every
-    // launch because it is idempotent and covers prefixes created without it.
+    // Audio=alsa (with PipeWire/ALSA plugins from the system) lets the game see
+    // any audio input as the Real Tone cable. Applied on every launch because it
+    // is idempotent and covers prefixes created without it.
     int result = RunProcess({ wine.string(), "reg", "add", "HKCU\\Software\\Wine\\Drivers",
-                              "/v", "dsound", "/d", "alsa", "/f" },
+                              "/v", "Audio", "/d", "alsa", "/f" },
                             { "WINEPREFIX=" + prefixDir.string() });
     if (result != 0) {
-        warnings.emplace_back("dsound=alsa could not be applied to the prefix (exit "
+        warnings.emplace_back("Audio=alsa could not be applied to the prefix (exit "
                               + std::to_string(result) + ")");
     }
 
@@ -100,23 +101,27 @@ std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runtime &
 }
 
 LaunchCommand BuildLaunchCommand(const ProfileConfig &profile,
-                                 const Runtime &runtime,
+                                 const Runner &runner,
                                  const IGameProfile &game)
 {
     LaunchCommand launch;
     fs::path executable = game.Executable(profile.installDir);
-    if (runtime.type == RuntimeType::Proton) {
-        launch.command = { runtime.executable.string(), "run", executable.string() };
+    if (runner.type == RunnerType::Proton) {
+        launch.command = { runner.executable.string(), "run", executable.string() };
     } else {
-        launch.command = { runtime.executable.string(), executable.string() };
+        launch.command = { runner.executable.string(), executable.string() };
     }
 
     LaunchContext context;
     context.installDir = profile.installDir;
     context.prefixDir = profile.prefixDir;
-    context.runtimeId = runtime.id;
+    context.runnerId = runner.id;
 
-    if (runtime.type == RuntimeType::Wine) {
+    // Games expect to be launched from their install directory; Rocksmith reads
+    // and writes Rocksmith.ini relative to the working directory.
+    launch.workingDirectory = profile.installDir;
+
+    if (runner.type == RunnerType::Wine) {
         launch.environment.emplace_back("WINEPREFIX=" + profile.prefixDir.string());
     } else {
         // Proton runs the game inside the prefix; point it at a real directory even without Steam.
@@ -142,6 +147,11 @@ bool ExecLaunchCommand(const LaunchCommand &command)
             setenv(variable.substr(0, separator).c_str(),
                    variable.substr(separator + 1).c_str(), 1);
         }
+    }
+
+    if (!command.workingDirectory.empty()
+        && chdir(command.workingDirectory.c_str()) == -1) {
+        return false;
     }
 
     std::vector<char *> argv;

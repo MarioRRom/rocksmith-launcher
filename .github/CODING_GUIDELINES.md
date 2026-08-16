@@ -24,24 +24,24 @@ They exist to keep the project coherent as it grows.
 
 The project is layered so every feature can be tested and used before any GUI exists:
 
-1. `rocklaunch-core/` — all business logic (game detection, runtimes, launch, patches, CDLC). **No Qt dependencies.**
-2. `rocklaunch-cli/` — thin CLI exercising the core. Subcommands by phase: `profile list/new/show/delete`, `set-path`, `runtime list`, `runtime install`, `launch`, `dlc list/add/delete`.
+1. `rocklaunch-core/` — all business logic (game detection, runners, launch, patches, CDLC). **No Qt dependencies.**
+2. `rocklaunch-cli/` — thin CLI exercising the core. Subcommands by phase: `profile list/new/show/remove`, `set-path`, `runner list`, `runner install`, `launch`, `cdlc list/add/remove`.
 3. `rocklaunch/` (phase 6) — Qt/QML frontend consuming the core's public API via thin QObject/Q_INVOKABLE wrappers.
 
-Nothing outside the core implements game detection, runtime handling, patching, or CDLC. Tests cover the core via the CLI.
+Nothing outside the core implements game detection, runner handling, patching, or CDLC. Tests cover the core via the CLI.
 
 `IGameProfile` represents the behavior of a supported game. A user-facing profile is
 instead a `ProfileConfig`: one installation of that game with its own identifier,
-install directory, runtime, prefix, and patch settings. The same install directory
+install directory, runner, prefix, and patch settings. The same install directory
 must not belong to more than one `ProfileConfig`.
 
 Key abstractions, defined from phase 0:
 
-- `IGameProfile` — `id()`, `validate_install()`, `required_env(LaunchContext)`, `executable()`.
-- `ILaunchPatch` — `id()`, `is_enabled(Profile)`, `apply(prefix_dir, install_dir)`. Provisional — the final patch interface is decided in phases 4/5 (possibly split into `ICablePatch`/`ICDLCPatch`).
+- `IGameProfile` — `Id()`, `ValidateInstall()`, `RequiredEnv(LaunchContext)`, `Executable()`.
+- `ILaunchPatch` — `Id()`, `GameId()`, `Preset()`, `IsEnabled(ProfileConfig)`, `Apply(ProfileConfig)`. Provisional — the final patch interface is decided in phases 4/5 (possibly split into `ICablePatch`/`ICDLCPatch`).
 - `GameSource` — locates the game (`SteamSource` via `libraryfolders.vdf`, `ManualSource` by path). No scattered conditional logic.
-- `IRuntimeSource` — discovers local Wine/Proton runtimes. `RuntimeManager` merges
-  sources and owns runtime lookup; sources never mutate profile configuration.
+- `IRunnerSource` — discovers local Wine/Proton runners. `RunnerManager` merges
+  sources and owns runner lookup; sources never mutate profile configuration.
 
 **Current phase 1 scope:** profile lifecycle and manually assigned paths are
 implemented and tested. `SteamSource` is intentionally separate future work until a
@@ -56,7 +56,7 @@ Data lives under XDG-friendly paths:
                                       → profiles/<profile_id>.json (game instances)
 ~/.local/share/rocksmith-launcher/
   ├── prefixes/<profile_id>/          → WINEPREFIX / STEAM_COMPAT_DATA_PATH
-  ├── runtimes/                       → downloaded GE-Proton versions
+  ├── runners/                        → downloaded GE-Proton versions
   └── logs/
 ```
 
@@ -86,7 +86,7 @@ Good:
 
 ```cpp
 // Only the expected files matter; the launcher does not care how the install was obtained.
-bool Rocksmith2014Profile::ValidateInstall(const fs::path &installDir) const
+bool Rocksmith2014RemasteredProfile::ValidateInstall(const fs::path &installDir) const
 ```
 
 Bad:
@@ -116,7 +116,7 @@ Leave one blank line above the comment.
 
 Launcher-wide configuration lives in `~/.config/rocksmith-launcher/config.json`.
 Per-installation configuration lives in `profiles/<profile_id>.json`; it includes
-the game ID, installation path, runtime ID, and patch settings. Keep keys descriptive
+the game ID, installation path, runner ID, and patch settings. Keep keys descriptive
 and predictable; new settings are exposed through the CLI first.
 
 ---

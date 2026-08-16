@@ -5,7 +5,7 @@
 namespace rocklaunch
 {
 
-class Rocksmith2014Profile final : public IGameProfile
+class Rocksmith2014RemasteredProfile final : public IGameProfile
 {
 public:
     std::string Id() const override;

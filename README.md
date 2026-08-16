@@ -7,7 +7,7 @@
 A Linux launcher for Rocksmith 2014 Edition Remastered that takes care of the annoying parts of running the game under Proton/Wine:
 
 - **Locate the game** automatically via Steam, or point it to any manual installation (Steam and non-Steam are equally supported).
-- **Manage Proton/Wine runtimes** — detects runtimes already installed on your system; on-demand GE-Proton downloads are planned.
+- **Manage Proton/Wine runners** — detects runners already installed on your system; on-demand GE-Proton downloads are planned.
 - **Launch the game** from a clean prefix with no manual intervention.
 - **Apply patches out of the box** — the no-cable patch and pre-launch audio setup are implemented directly by the launcher, reusing methods inspired by the relevant projects; the CDLC enabler approach is under evaluation (see [Credits](#credits)).
 - **Manage CDLC** — toggle the CDLC patch on/off, and manage your custom songs (view, remove, import) directly from the launcher.
@@ -24,13 +24,13 @@ The project is built in small, self-contained phases — each one is usable on i
 |---|---|---|
 | 0 | ✅ Project skeleton (CMake, core library + CLI, `IGameProfile`, logging) | — |
 | 1 | ✅ Profile management and manual game paths | Phase 2/3 |
-| 2 | ✅ Proton/Wine runtime manager (local discovery and per-profile selection) | Phase 3 |
+| 2 | ✅ Proton/Wine runner manager (local discovery and per-profile selection) | Phase 3 |
 | 3 | ✅ Launch the game from a clean prefix (no patches/audio yet) | Phase 4 |
 | 4 | No-cable patch: enable the game's Direct Connect input mode so any audio input works (toggleable) | Phase 6 |
 | 5 | CDLC patch (enable/disable) — method under evaluation | Phase 6 |
 | 6 | First Qt/QML GUI | Phase 7 |
-| 7 | CDLC songs manager (CLI `dlc list/add/delete` + GUI) | — |
-| 8 | Runtime downloader (`runtime install` — fetch GE-Proton from GitHub releases) | — |
+| 7 | CDLC songs manager (CLI `cdlc list/add/remove` + GUI) | — |
+| 8 | Runner downloader (`runner install` — fetch GE-Proton from GitHub releases) | — |
 | 9 | Steam game auto-detection (`SteamSource` via `libraryfolders.vdf`) | — |
 
 Phases 8 and 9 are the least urgent: the typical user already has Proton installed
@@ -40,7 +40,7 @@ other phase.
 ## Profiles
 
 A profile is one independently configured Rocksmith installation. It owns its game
-directory, runtime selection, prefix, and patch settings. The same game directory
+directory, runner selection, prefix, and patch settings. The same game directory
 cannot be assigned to more than one profile.
 
 The launcher configuration is separate from profiles and only stores launcher-wide
@@ -82,7 +82,7 @@ Want to contribute? All the details live in two documents so this README doesn't
 ## Design principles
 
 - Steam and non-Steam installations are supported on equal footing — for non-Steam games you simply point the launcher at the game directory. The launcher only checks that the expected files exist.
-- Each game installation belongs to exactly one profile. Patches, runtime choice, and
+- Each game installation belongs to exactly one profile. Patches, runner choice, and
   prefix state are profile-specific; launcher-wide preferences remain global.
 - The launcher reimplements the relevant methods (no-cable patch, pre-launch audio setup) itself, inspired by existing projects — no `launcher.exe -> game.exe` chains, and no extra files from the user. **CDLC is the one exception under evaluation:** the enabler binary may be downloaded from upstream on demand or provided by the user, since its upstream has no license (see [CustomDLC.md](./CustomDLC.md)).
 - Detection is preferred over download: if you have Steam, use the Proton/GE-Proton already installed before implementing a downloader.

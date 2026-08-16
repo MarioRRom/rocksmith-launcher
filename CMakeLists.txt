@@ -46,11 +46,11 @@ if (BUILD_TESTING)
     )
 
     add_test(
-        NAME rocklaunch-cli-runtime-manager
+        NAME rocklaunch-cli-runner-manager
         COMMAND ${CMAKE_COMMAND}
             -DROCKLAUNCH_CLI=$<TARGET_FILE:rocklaunch-cli>
-            -DTEST_ROOT=${CMAKE_BINARY_DIR}/runtime-manager-test
-            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_manager.cmake
+            -DTEST_ROOT=${CMAKE_BINARY_DIR}/runner-manager-test
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/runner_manager.cmake
     )
 
     add_test(

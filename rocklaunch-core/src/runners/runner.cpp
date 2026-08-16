@@ -1,16 +1,16 @@
-#include "rocklaunch/core/runtimes/runtime.h"
+#include "rocklaunch/core/runners/runner.h"
 
 #include <cctype>
 
 namespace rocklaunch
 {
 
-std::string RuntimeTypeName(RuntimeType type)
+std::string RunnerTypeName(RunnerType type)
 {
-    return type == RuntimeType::Wine ? "wine" : "proton";
+    return type == RunnerType::Wine ? "wine" : "proton";
 }
 
-std::string SanitizeRuntimeId(const std::string &name)
+std::string SanitizeRunnerId(const std::string &name)
 {
     std::string id;
     id.reserve(name.size());

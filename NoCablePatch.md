@@ -100,7 +100,7 @@ Multiplayer device selection is handled in-game, not by the launcher.
 ### Integration with `launch`
 
 Right before the phase-3 `exec`, in order:
-1. **Verify `game_id`**: profile must be `rocksmith2014`; any other game never
+1. **Verify `game_id`**: profile must be `rocksmith2014remastered`; any other game never
    receives this patch.
 2. **Skip when disabled**: `patches.direct_connect.enabled == false` → nothing to
    do (and restore the original `cache.psarc` if a previous enable left it

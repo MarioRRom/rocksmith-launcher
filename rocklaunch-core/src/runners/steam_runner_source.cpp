@@ -1,4 +1,4 @@
-#include "rocklaunch/core/runtimes/steam_runtime_source.h"
+#include "rocklaunch/core/runners/steam_runner_source.h"
 
 #include <cstdlib>
 #include <set>
@@ -9,7 +9,7 @@ namespace rocklaunch
 namespace
 {
 
-void AppendRuntimeDirectories(const fs::path &directory, std::vector<Runtime> &runtimes)
+void AppendRunnerDirectories(const fs::path &directory, std::vector<Runner> &runners)
 {
     std::error_code error;
     if (!fs::is_directory(directory, error)) {
@@ -20,29 +20,29 @@ void AppendRuntimeDirectories(const fs::path &directory, std::vector<Runtime> &r
         fs::path proton = entry.path() / "proton";
         if (entry.is_directory() && fs::is_regular_file(proton, error)) {
             std::string name = entry.path().filename().string();
-            runtimes.push_back({ "steam-proton-" + SanitizeRuntimeId(name), name,
-                                 RuntimeType::Proton, "steam", entry.path(), proton });
+            runners.push_back({ "steam-proton-" + SanitizeRunnerId(name), name,
+                                 RunnerType::Proton, "steam", entry.path(), proton });
         }
     }
 }
 
 } // namespace
 
-SteamRuntimeSource::SteamRuntimeSource(std::vector<fs::path> steamRoots)
+SteamRunnerSource::SteamRunnerSource(std::vector<fs::path> steamRoots)
     : m_steamRoots(std::move(steamRoots))
 {
 }
 
-std::vector<Runtime> SteamRuntimeSource::Discover() const
+std::vector<Runner> SteamRunnerSource::Discover() const
 {
-    std::vector<Runtime> runtimes;
+    std::vector<Runner> runners;
     for (const fs::path &steamRoot : m_steamRoots) {
-        AppendRuntimeDirectories(steamRoot / "compatibilitytools.d", runtimes);
+        AppendRunnerDirectories(steamRoot / "compatibilitytools.d", runners);
     }
-    return runtimes;
+    return runners;
 }
 
-std::vector<fs::path> SteamRuntimeSource::DefaultRoots()
+std::vector<fs::path> SteamRunnerSource::DefaultRoots()
 {
     std::vector<fs::path> roots;
     const char *home = std::getenv("HOME");

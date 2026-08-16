@@ -45,15 +45,15 @@ if (NOT LAST_OUTPUT MATCHES "set-path")
     message(FATAL_ERROR "Launching without an install path should mention set-path")
 endif()
 
-# A profile with a path but no runtime must be rejected too.
+# A profile with a path but no runner must be rejected too.
 RunCli(0 set-path test-profile "${TEST_ROOT}/games/rock")
 RunCli(1 launch test-profile)
-if (NOT LAST_OUTPUT MATCHES "runtime set")
-    message(FATAL_ERROR "Launching without a runtime should mention runtime set")
+if (NOT LAST_OUTPUT MATCHES "runner set")
+    message(FATAL_ERROR "Launching without a runner should mention runner set")
 endif()
 
-# With a runtime the launch prepares the prefix and runs the game process.
-RunCli(0 runtime set test-profile steam-proton-ge-proton-test)
+# With a runner the launch prepares the prefix and runs the game process.
+RunCli(0 runner set test-profile steam-proton-ge-proton-test)
 RunCli(0 launch test-profile)
 if (NOT EXISTS "${TEST_ROOT}/data/rocksmith-launcher/prefixes/test-profile")
     message(FATAL_ERROR "The launch did not create the profile prefix")

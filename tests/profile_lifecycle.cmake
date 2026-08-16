@@ -40,7 +40,7 @@ if (NOT LAST_OUTPUT MATCHES "already used by profile: steam")
     message(FATAL_ERROR "Duplicate installation path was not rejected as expected")
 endif()
 
-RunCli(0 profile delete steam)
+RunCli(0 profile remove -f steam)
 RunCli(1 profile show steam)
 
 if (NOT LAST_OUTPUT MATCHES "Profile not found: steam")
