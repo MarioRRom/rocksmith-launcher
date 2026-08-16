@@ -20,7 +20,9 @@ struct LaunchCommand
 };
 
 // Creates the prefix directory when it does not exist yet and applies the global
-// prefix settings (Audio=alsa). Returns warnings for settings that could not be applied.
+// prefix settings (Audio=alsa). For Proton runners the keys are written to
+// <prefixDir>/pfx (the WINEPREFIX the proton script actually uses); Wine runners
+// use <prefixDir> directly. Returns warnings for settings that could not be applied.
 std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &runner);
 
 // Builds the command line and environment to run profile's game with the given runner.

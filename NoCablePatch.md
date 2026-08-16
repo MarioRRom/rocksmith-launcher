@@ -45,7 +45,7 @@ feature. We do not fork or delegate to it — we reimplement the specific
   the CDLC manager (phase 7) will need anyway. Shared infrastructure, worth
   building once.
 
-## Prefix requirement (unchanged)
+## Prefix requirement
 
 Direct Connect Mode still needs the prefix to expose capture devices to WASAPI —
 this part of the original design is unchanged:
@@ -54,8 +54,10 @@ this part of the original design is unchanged:
 wine reg add "HKCU\Software\Wine\Drivers" /v Audio /t REG_SZ /d alsa /f
 ```
 
-Already applied by `EnsurePrefix` on every launch (`Audio=alsa` + `dsound=alsa`).
-No changes needed here.
+Already applied by `EnsurePrefix` on every launch: `Audio=alsa` is injected for
+**both** runner types — wine writes to `<prefix>`, proton to `<prefix>/pfx` (the
+real WINEPREFIX the proton script uses) — enabling native detection of all audio
+inputs in-game.
 
 ## To confirm before implementing
 

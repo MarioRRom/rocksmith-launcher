@@ -74,9 +74,18 @@ std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &r
 {
     std::vector<std::string> warnings;
     std::error_code error;
-    fs::create_directories(prefixDir, error);
+
+    // The proton script uses <prefixDir>/pfx as the real WINEPREFIX; prefixDir
+    // itself is only the STEAM_COMPAT_DATA_PATH container. Wine runners use the
+    // directory directly.
+    fs::path winePrefix = prefixDir;
+    if (runner.type == RunnerType::Proton) {
+        winePrefix = prefixDir / "pfx";
+    }
+
+    fs::create_directories(winePrefix, error);
     if (error) {
-        throw std::runtime_error("Unable to create prefix: " + prefixDir.string());
+        throw std::runtime_error("Unable to create prefix: " + winePrefix.string());
     }
 
     fs::path wine = WineBinaryFor(runner);
@@ -88,13 +97,20 @@ std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &r
 
     // Audio=alsa (with PipeWire/ALSA plugins from the system) lets the game see
     // any audio input as the Real Tone cable. Applied on every launch because it
-    // is idempotent and covers prefixes created without it.
-    int result = RunProcess({ wine.string(), "reg", "add", "HKCU\\Software\\Wine\\Drivers",
-                              "/v", "Audio", "/d", "alsa", "/f" },
-                            { "WINEPREFIX=" + prefixDir.string() });
-    if (result != 0) {
-        warnings.emplace_back("Audio=alsa could not be applied to the prefix (exit "
-                              + std::to_string(result) + ")");
+    // is idempotent and covers prefixes created without it. Written to both the
+    // 64-bit and 32-bit (Wow6432Node) views so 32-bit games pick it up regardless
+    // of registry redirection.
+    const std::vector<std::string> keys = { "HKCU\\Software\\Wine\\Drivers",
+                                            "HKCU\\Software\\Wow6432Node\\Wine\\Drivers" };
+    for (const std::string &key : keys) {
+        int result = RunProcess({ wine.string(), "reg", "add", key,
+                                  "/v", "Audio", "/d", "alsa", "/f" },
+                                { "WINEPREFIX=" + winePrefix.string() });
+        if (result != 0) {
+            warnings.emplace_back("Audio=alsa could not be applied to the prefix (exit "
+                                  + std::to_string(result) + ")");
+            break;
+        }
     }
 
     return warnings;
