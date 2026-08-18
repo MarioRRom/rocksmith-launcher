@@ -84,21 +84,8 @@ std::array<uint8_t, 16> ComputeMD5(const uint8_t *data, size_t len)
     return result;
 }
 
-// Zero-pad data to a multiple of 16 bytes (AES block size).
-// PSARC TOC sizes are always 16-byte aligned, so this adds zero bytes
-// in practice — applied for spec compliance with community tools.
-std::vector<uint8_t> PadData(const uint8_t *data, size_t len)
-{
-    size_t padded = len + (16 - (len % 16)) % 16;
-    std::vector<uint8_t> result(data, data + len);
-    result.resize(padded, 0);
-    return result;
-}
-
 std::vector<uint8_t> AesDecrypt(const uint8_t *data, size_t len)
 {
-    auto padded = PadData(data, len);
-
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) {
         throw std::runtime_error("Failed to create AES context");
@@ -110,12 +97,12 @@ std::vector<uint8_t> AesDecrypt(const uint8_t *data, size_t len)
         throw std::runtime_error("Failed to initialize AES decryption");
     }
 
-    std::vector<uint8_t> output(padded.size() + EVP_CIPHER_block_size(EVP_aes_256_cfb128()));
+    std::vector<uint8_t> output(len + EVP_CIPHER_block_size(EVP_aes_256_cfb128()));
     int outLen = 0;
     int totalLen = 0;
 
     if (EVP_DecryptUpdate(ctx, output.data(), &outLen,
-                          padded.data(), static_cast<int>(padded.size())) != 1) {
+                          data, static_cast<int>(len)) != 1) {
         EVP_CIPHER_CTX_free(ctx);
         throw std::runtime_error("AES decryption update failed");
     }
@@ -134,8 +121,6 @@ std::vector<uint8_t> AesDecrypt(const uint8_t *data, size_t len)
 
 std::vector<uint8_t> AesEncrypt(const uint8_t *data, size_t len)
 {
-    auto padded = PadData(data, len);
-
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) {
         throw std::runtime_error("Failed to create AES context");
@@ -147,12 +132,12 @@ std::vector<uint8_t> AesEncrypt(const uint8_t *data, size_t len)
         throw std::runtime_error("Failed to initialize AES encryption");
     }
 
-    std::vector<uint8_t> output(padded.size() + EVP_CIPHER_block_size(EVP_aes_256_cfb128()));
+    std::vector<uint8_t> output(len + EVP_CIPHER_block_size(EVP_aes_256_cfb128()));
     int outLen = 0;
     int totalLen = 0;
 
     if (EVP_EncryptUpdate(ctx, output.data(), &outLen,
-                          padded.data(), static_cast<int>(padded.size())) != 1) {
+                          data, static_cast<int>(len)) != 1) {
         EVP_CIPHER_CTX_free(ctx);
         throw std::runtime_error("AES encryption update failed");
     }
