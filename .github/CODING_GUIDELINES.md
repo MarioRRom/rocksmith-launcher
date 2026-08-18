@@ -1,126 +1,87 @@
 # Rocksmith Launcher — Coding Guidelines
 
-This document describes the coding conventions, formatting rules, and architectural practices used throughout Rocksmith Launcher.
+Keep the codebase readable, consistent, and easy to review. These are not meant to restrict contributors — they exist to keep the project coherent as it grows.
 
-The objective is simple:
-
-* keep the codebase readable
-* preserve consistency between modules
-* simplify long-term maintenance
-* make contributions easier to review
-
-These guidelines are not meant to restrict contributors unnecessarily.
-They exist to keep the project coherent as it grows.
+**English** is the default language: code, identifiers, comments, commit messages, and documentation.
 
 ---
 
-# Language
+## Architecture
 
-**English is the default language of the project**: code, identifiers, comments, commit messages, and documentation.
+The project is layered so every feature can be tested without a GUI:
 
----
-
-# Architecture
-
-The project is layered so every feature can be tested and used before any GUI exists:
-
-1. `rocklaunch-core/` — all business logic (game detection, runners, launch, patches, CDLC). **No Qt dependencies.**
-2. `rocklaunch-cli/` — thin CLI exercising the core. Subcommands by phase: `profile list/new/show/remove`, `set-path`, `runner list`, `runner install`, `launch`, `cdlc list/add/remove`.
-3. `rocklaunch/` (phase 6) — Qt/QML frontend consuming the core's public API via thin QObject/Q_INVOKABLE wrappers.
+```
+rocklaunch-core/     Business logic. No Qt dependencies.
+rocklaunch-cli/      Thin CLI exercising the core.
+rocklaunch/          (phase 6) Qt/QML frontend consuming the core.
+```
 
 Nothing outside the core implements game detection, runner handling, patching, or CDLC. Tests cover the core via the CLI.
 
-`IGameProfile` represents the behavior of a supported game. A user-facing profile is
-instead a `ProfileConfig`: one installation of that game with its own identifier,
-install directory, runner, prefix, and patch settings. The same install directory
-must not belong to more than one `ProfileConfig`.
+**Key abstractions** (defined from phase 0):
 
-Key abstractions, defined from phase 0:
+- `IGameProfile` — behavior of a supported game (`Id`, `ValidateInstall`, `RequiredEnv`, `Executable`).
+- `ILaunchPatch` — patch interface (`Id`, `GameId`, `Preset`, `IsEnabled`, `Apply`, `Remove`).
+- `GameSource` — locates the game (`SteamSource`, `ManualSource`). No scattered conditional logic.
+- `IRunnerSource` — discovers local Wine/Proton runners. `RunnerManager` merges sources.
 
-- `IGameProfile` — `Id()`, `ValidateInstall()`, `RequiredEnv(LaunchContext)`, `Executable()`.
-- `ILaunchPatch` — `Id()`, `GameId()`, `Preset()`, `IsEnabled(ProfileConfig)`, `Apply(ProfileConfig)`. Provisional — the final patch interface is decided in phases 4/5 (possibly split into `ICablePatch`/`ICDLCPatch`).
-- `GameSource` — locates the game (`SteamSource` via `libraryfolders.vdf`, `ManualSource` by path). No scattered conditional logic.
-- `IRunnerSource` — discovers local Wine/Proton runners. `RunnerManager` merges
-  sources and owns runner lookup; sources never mutate profile configuration.
+**Profiles** (`ProfileConfig`) represent one installation of a game with its own path, runner, prefix, and patch settings. The same install directory cannot belong to more than one profile.
 
-**Current phase 1 scope:** profile lifecycle and manually assigned paths are
-implemented and tested. `SteamSource` is intentionally separate future work until a
-Steam installation is available for validation.
+**Launcher reimplements** the methods of relevant projects at launcher level — no forks, no `launcher.exe -> game.exe` chains, no files required from the user. CDLC is the exception under evaluation (see `.github/CustomDLCPatch.md`). Inspiration credited in the README.
 
-The launcher reimplements the methods of relevant projects (no-cable, audio) at launcher level — no literal forks, no `launcher.exe -> game.exe` chains, no files required from the user. **CDLC is the exception under evaluation:** the enabler binary may be downloaded on demand from upstream or provided by the user (its upstream has no license), never bundled or redistributed. Inspiration is credited in the README (`# Credits`).
-
-Data lives under XDG-friendly paths:
+**Data paths:**
 
 ```
-~/.config/rocksmith-launcher/         → config.json (launcher-wide settings)
-                                      → profiles/<profile_id>.json (game instances)
+~/.config/rocksmith-launcher/
+    config.json                        launcher-wide settings
+    profiles/<profile_id>.json         game instances
 ~/.local/share/rocksmith-launcher/
-  ├── prefixes/<profile_id>/          → WINEPREFIX / STEAM_COMPAT_DATA_PATH
-  ├── runners/                        → downloaded GE-Proton versions
-  └── logs/
+    prefixes/<profile_id>/             WINEPREFIX / STEAM_COMPAT_DATA_PATH
+    runners/                           downloaded GE-Proton versions
+    logs/
 ```
-
-Log to file from startup (`logs/`), for every launch flow.
 
 ---
 
-# C++ Style
+## C++ Style
 
-Follow the **Qt Group Coding Conventions** (https://wiki.qt.io/Coding_Conventions). On top of them, this project adds:
+Follow the [Qt Group Coding Conventions](https://wiki.qt.io/Coding_Conventions). This project adds:
 
 - Interfaces use the `I` prefix (`IGameProfile`, `ILaunchPatch`).
 - Private members use the `m_` prefix.
 - Use `std::filesystem` (`fs`) for paths.
 - `#pragma once` as include guard.
-- Comments follow the rules in the [Comments](#comments) section.
 
 ---
 
-# Comments
+## Comments
 
-Comments apply to C++ today and to QML once the GUI lands (phase 6). The rules are language-agnostic.
+Comments explain intent, not obvious implementation details. Assume the reader already understands the language syntax.
 
-Comments should explain intent, not obvious implementation details.
-
-Good:
+**Good** — explains why:
 
 ```cpp
 // Only the expected files matter; the launcher does not care how the install was obtained.
 bool Rocksmith2014RemasteredProfile::ValidateInstall(const fs::path &installDir) const
 ```
 
-Bad:
+**Bad** — restates what the code does:
 
 ```cpp
 // Increment counter by one
 counter++
 ```
 
-Assume the reader already understands the language syntax.
-
-## Simple Comment Separator
-
-Used for compact or minor sections.
+For compact or minor sections, use a simple separator with a blank line above:
 
 ```cpp
 // Profile commands
+
 // Path assignment
-// Entry point
 ```
 
-Leave one blank line above the comment.
-
 ---
 
-# Config (JSON)
+## Config (JSON)
 
-Launcher-wide configuration lives in `~/.config/rocksmith-launcher/config.json`.
-Per-installation configuration lives in `profiles/<profile_id>.json`; it includes
-the game ID, installation path, runner ID, and patch settings. Keep keys descriptive
-and predictable; new settings are exposed through the CLI first.
-
----
-
-# QML (future GUI, phase 6)
-
-The Qt/QML frontend consumes the already-tested core; keep business logic out of the UI. Detailed QML conventions will be added when the GUI is being built.
+Per-installation configuration lives in `profiles/<profile_id>.json` (game ID, install path, runner, patches). Launcher-wide settings live in `config.json`. Keep keys descriptive and predictable; new settings are exposed through the CLI first.

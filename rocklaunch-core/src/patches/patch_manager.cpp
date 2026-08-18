@@ -58,7 +58,8 @@ const ILaunchPatch *PatchManager::Find(const std::string &patchId) const
 
 bool PatchManager::Enable(const std::string &profileId,
                           const std::string &patchId,
-                          std::string &error)
+                          std::string &error,
+                          bool force)
 {
     const ILaunchPatch *patch = Find(patchId);
     if (patch == nullptr) {
@@ -85,12 +86,12 @@ bool PatchManager::Enable(const std::string &profileId,
         return false;
     }
 
-    if (patch->IsEnabled(*profile)) {
+    if (!force && patch->IsEnabled(*profile)) {
         error = "Patch " + patchId + " is already enabled on profile " + profileId;
         return false;
     }
 
-    patch->Apply(*profile);
+    patch->Apply(*profile, force);
     profile->patches[patchId].enabled = true;
     m_configStore.SaveProfile(*profile);
     return true;
@@ -98,7 +99,8 @@ bool PatchManager::Enable(const std::string &profileId,
 
 bool PatchManager::Disable(const std::string &profileId,
                            const std::string &patchId,
-                           std::string &error)
+                           std::string &error,
+                           bool force)
 {
     const ILaunchPatch *patch = Find(patchId);
     if (patch == nullptr) {
@@ -117,7 +119,7 @@ bool PatchManager::Disable(const std::string &profileId,
         return false;
     }
 
-    if (!patch->IsEnabled(*profile)) {
+    if (!force && !patch->IsEnabled(*profile)) {
         error = "Patch " + patchId + " is not enabled on profile " + profileId;
         return false;
     }

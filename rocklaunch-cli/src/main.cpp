@@ -20,7 +20,7 @@ namespace
 
 void PrintUsageEntry(const std::string &command, const std::string &description)
 {
-    std::cout << "    " << std::left << std::setw(34) << command << description << '\n';
+    std::cout << "    " << std::left << std::setw(40) << command << description << '\n';
 }
 
 void PrintUsage()
@@ -42,8 +42,8 @@ void PrintUsage()
     std::cout << "\nPATCHES:\n";
     PrintUsageEntry("patch list", "List all available patches.");
     PrintUsageEntry("patch list <profile>", "List patches for a profile.");
-    PrintUsageEntry("patch add <profile> <patch>", "Enable a patch on a profile.");
-    PrintUsageEntry("patch remove <profile> <patch>", "Disable a patch on a profile.");
+    PrintUsageEntry("patch add [-f] <profile> <patch>", "Enable a patch (-f to force re-enable).");
+    PrintUsageEntry("patch remove [-f] <profile> <patch>", "Disable a patch (-f to force).");
     PrintUsageEntry("patch status <profile> <patch>", "Show a patch's state.");
     std::cout << "\nLAUNCH:\n";
     PrintUsageEntry("launch <profile>", "Launch the profile's game in its prefix.");
@@ -204,10 +204,10 @@ int RemoveProfile(const std::string &profileId,
 
 int PatchListAll(const rocklaunch::PatchManager &patchManager)
 {
-    std::cout << std::left << std::setw(26) << "Patch" << std::setw(16) << "Game" << "Name\n";
+    std::cout << std::left << std::setw(26) << "Patch" << std::setw(26) << "Game" << "Name\n";
     for (const rocklaunch::ILaunchPatch *patch : patchManager.List()) {
         rocklaunch::PatchPreset preset = patch->Preset();
-        std::cout << std::setw(26) << patch->Id() << std::setw(16) << preset.gameId
+        std::cout << std::setw(26) << patch->Id() << std::setw(26) << preset.gameId
                   << preset.name << '\n';
     }
 
@@ -224,7 +224,7 @@ int PatchList(const std::string &profileId,
     }
 
     rocklaunch::ProfileConfig config = configStore.LoadProfile(profileId);
-    std::cout << std::left << std::setw(26) << "Patch" << std::setw(16) << "Game"
+    std::cout << std::left << std::setw(26) << "Patch" << std::setw(26) << "Game"
               << std::setw(10) << "Status" << "Name\n";
     for (const rocklaunch::ILaunchPatch *patch : patchManager.List()) {
         if (patch->GameId() != config.gameId) {
@@ -232,7 +232,7 @@ int PatchList(const std::string &profileId,
         }
 
         rocklaunch::PatchPreset preset = patch->Preset();
-        std::cout << std::setw(26) << patch->Id() << std::setw(16) << preset.gameId
+        std::cout << std::setw(26) << patch->Id() << std::setw(26) << preset.gameId
                   << std::setw(10)
                   << (patch->IsEnabled(config) ? "enabled" : "disabled") << preset.name << '\n';
     }
@@ -242,10 +242,11 @@ int PatchList(const std::string &profileId,
 
 int PatchAdd(const std::string &profileId,
              const std::string &patchId,
-             rocklaunch::PatchManager &patchManager)
+             rocklaunch::PatchManager &patchManager,
+             bool force)
 {
     std::string error;
-    if (!patchManager.Enable(profileId, patchId, error)) {
+    if (!patchManager.Enable(profileId, patchId, error, force)) {
         std::cerr << error << '\n';
         return 1;
     }
@@ -256,10 +257,11 @@ int PatchAdd(const std::string &profileId,
 
 int PatchRemove(const std::string &profileId,
                 const std::string &patchId,
-                rocklaunch::PatchManager &patchManager)
+                rocklaunch::PatchManager &patchManager,
+                bool force)
 {
     std::string error;
-    if (!patchManager.Disable(profileId, patchId, error)) {
+    if (!patchManager.Disable(profileId, patchId, error, force)) {
         std::cerr << error << '\n';
         return 1;
     }
@@ -478,12 +480,26 @@ int main(int argc, char *argv[])
 
         if (argument == "patch" && argc == 5 && std::string_view(argv[2]) == "add") {
             logger.Info("Enabling a patch on a profile");
-            return PatchAdd(argv[3], argv[4], patchManager);
+            return PatchAdd(argv[3], argv[4], patchManager, false);
+        }
+
+        if (argument == "patch" && argc == 6 && std::string_view(argv[2]) == "add"
+            && (std::string_view(argv[3]) == "-f"
+                || std::string_view(argv[3]) == "--force")) {
+            logger.Info("Enabling a patch on a profile (forced)");
+            return PatchAdd(argv[4], argv[5], patchManager, true);
         }
 
         if (argument == "patch" && argc == 5 && std::string_view(argv[2]) == "remove") {
             logger.Info("Disabling a patch on a profile");
-            return PatchRemove(argv[3], argv[4], patchManager);
+            return PatchRemove(argv[3], argv[4], patchManager, false);
+        }
+
+        if (argument == "patch" && argc == 6 && std::string_view(argv[2]) == "remove"
+            && (std::string_view(argv[3]) == "-f"
+                || std::string_view(argv[3]) == "--force")) {
+            logger.Info("Disabling a patch on a profile (forced)");
+            return PatchRemove(argv[4], argv[5], patchManager, true);
         }
 
         if (argument == "patch" && argc == 5 && std::string_view(argv[2]) == "status") {

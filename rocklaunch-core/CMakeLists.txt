@@ -13,6 +13,8 @@ add_library(rocklaunch-core
     src/runners/runner_manager.cpp
     src/runners/steam_runner_source.cpp
     src/runners/system_wine_source.cpp
+    src/utils/psarc_util.cpp
+    src/utils/subprocess.cpp
 )
 
 add_library(rocklaunch::core ALIAS rocklaunch-core)
@@ -24,7 +26,9 @@ target_include_directories(rocklaunch-core
 
 target_link_libraries(rocklaunch-core
     PRIVATE
+        OpenSSL::Crypto
         nlohmann_json::nlohmann_json
+        ZLIB::ZLIB
 )
 
 target_compile_features(rocklaunch-core PUBLIC cxx_std_17)

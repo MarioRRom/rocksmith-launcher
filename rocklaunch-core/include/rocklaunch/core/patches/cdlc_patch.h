@@ -6,7 +6,7 @@ namespace rocklaunch
 {
 
 // Phase 5 CDLC patch: lets custom song charts load by deploying the CDLC enabler
-// into the game folder (see CustomDLC.md). Install-level and reversible.
+// into the game folder (see CustomDLCPatch.md). Install-level and reversible.
 class CDLCPatch final : public ILaunchPatch
 {
 public:
@@ -14,7 +14,7 @@ public:
     std::string GameId() const override;
     PatchPreset Preset() const override;
     bool IsEnabled(const ProfileConfig &profile) const override;
-    void Apply(const ProfileConfig &profile) const override;
+    void Apply(const ProfileConfig &profile, bool force = false) const override;
     void Remove(const ProfileConfig &profile) const override;
 };
 

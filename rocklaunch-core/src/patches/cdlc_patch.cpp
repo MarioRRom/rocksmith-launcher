@@ -40,14 +40,14 @@ bool CDLCPatch::IsEnabled(const ProfileConfig &profile) const
     return it != profile.patches.end() && it->second.enabled;
 }
 
-void CDLCPatch::Apply(const ProfileConfig &profile) const
+void CDLCPatch::Apply(const ProfileConfig &profile, bool force) const
 {
     if (profile.gameId != GameId()) {
         throw std::runtime_error("Patch " + Id() + " is for game " + GameId()
                                  + ", profile is for game " + profile.gameId);
     }
 
-    // TODO(phase 5): deploy the CDLC enabler (see CustomDLC.md). The source of
+    // TODO(phase 5): deploy the CDLC enabler (see CustomDLCPatch.md). The source of
     // the DLL (download-on-demand vs user-provided) is not decided yet.
 }
 

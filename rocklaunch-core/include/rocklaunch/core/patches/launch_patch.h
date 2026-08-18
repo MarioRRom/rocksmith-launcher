@@ -21,14 +21,12 @@ public:
     virtual std::string Id() const = 0;
     // Game the patch was designed for; profiles with a different game_id are rejected.
     virtual std::string GameId() const = 0;
-    // Description of what the patch does and what it touches.
     virtual PatchPreset Preset() const = 0;
-    // Whether the profile currently has this patch enabled.
     virtual bool IsEnabled(const ProfileConfig &profile) const = 0;
-    // Enables the patch for the profile. Each patch re-verifies profile.gameId
-    // before doing anything; throws std::runtime_error on mismatch or failure.
-    virtual void Apply(const ProfileConfig &profile) const = 0;
-    // Disables the patch for the profile, reverting its changes when reversible.
+    // When force is true, re-applies even if already enabled (useful for
+    // regenerating cache states or recovering from a corrupted apply).
+    virtual void Apply(const ProfileConfig &profile, bool force = false) const = 0;
+    // Reverts the patch changes when reversible.
     virtual void Remove(const ProfileConfig &profile) const = 0;
 };
 

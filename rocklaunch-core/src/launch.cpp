@@ -95,11 +95,8 @@ std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &r
         return warnings;
     }
 
-    // Audio=alsa (with PipeWire/ALSA plugins from the system) lets the game see
-    // any audio input as the Real Tone cable. Applied on every launch because it
-    // is idempotent and covers prefixes created without it. Written to both the
-    // 64-bit and 32-bit (Wow6432Node) views so 32-bit games pick it up regardless
-    // of registry redirection.
+    // Audio=alsa: makes the game enumerate audio devices via ALSA.
+    // Written to both 64-bit and 32-bit registry views for the 32-bit game.
     const std::vector<std::string> keys = { "HKCU\\Software\\Wine\\Drivers",
                                             "HKCU\\Software\\Wow6432Node\\Wine\\Drivers" };
     for (const std::string &key : keys) {
