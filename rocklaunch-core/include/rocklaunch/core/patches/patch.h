@@ -13,6 +13,7 @@ namespace fs = std::filesystem;
 enum class PatchOperationType
 {
     EditFile,     // modify an entry inside a packed data file (e.g. cache.psarc)
+    EditIni,      // set a key inside an INI file (creates section/file if missing)
     CopyFile,     // place a file into the game directory
     RemoveFile,   // delete a file from the game directory
     RestoreFile,  // restore a previously backed-up original

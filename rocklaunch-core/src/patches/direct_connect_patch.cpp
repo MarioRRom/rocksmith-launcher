@@ -3,6 +3,7 @@
 #include "rocklaunch/core/logger.h"
 #include "rocklaunch/core/psarc_util.h"
 #include "rocklaunch/core/subprocess.h"
+#include "rocklaunch/core/utils/ini_editor.h"
 
 #include <fstream>
 #include <nlohmann/json.hpp>
@@ -343,13 +344,18 @@ PatchPreset DirectConnectPatch::Preset() const
         GameId(),
         "Direct Connect Mode",
         "Enables the game's hidden Input > Direct Connect mode so any audio "
-        "device can be used as the guitar input. Edits cache.psarc in-place; "
-        "original preserved as cache.psarc.bak for safe revert.",
+        "device can be used as the guitar input. Sets standard Linux audio "
+        "tweaks in Rocksmith.ini. Edits cache.psarc in-place; original "
+        "preserved as cache.psarc.bak for safe revert.",
         true,
         true,
         {
             { PatchOperationType::EditFile, fs::path("cache.psarc"),
               "toggle the Direct Connect flag inside cache7.7z manifests" },
+            { PatchOperationType::EditIni, fs::path("Rocksmith.ini"),
+              "set ExclusiveMode=0 under [Audio]" },
+            { PatchOperationType::EditIni, fs::path("Rocksmith.ini"),
+              "set Win32UltraLowLatencyMode=0 under [Audio]" },
             { PatchOperationType::RestoreFile, fs::path("cache.psarc"),
               "restore the backed-up original when disabled" },
         },
@@ -375,6 +381,11 @@ void DirectConnectPatch::Apply(const ProfileConfig &profile, bool force) const
     }
 
     PatchCachePsarc(gameCache, true);
+
+    // Standard Linux audio tweaks — persistent, not removed on patch disable.
+    fs::path iniPath = profile.installDir / "Rocksmith.ini";
+    IniEditor::Set(iniPath, "Audio", "ExclusiveMode", "0");
+    IniEditor::Set(iniPath, "Audio", "Win32UltraLowLatencyMode", "0");
 }
 
 void DirectConnectPatch::Remove(const ProfileConfig &profile) const

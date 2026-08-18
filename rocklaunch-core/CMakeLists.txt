@@ -13,6 +13,7 @@ add_library(rocklaunch-core
     src/runners/runner_manager.cpp
     src/runners/steam_runner_source.cpp
     src/runners/system_wine_source.cpp
+    src/utils/ini_editor.cpp
     src/utils/psarc_util.cpp
     src/utils/subprocess.cpp
 )

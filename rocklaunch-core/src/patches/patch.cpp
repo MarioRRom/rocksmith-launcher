@@ -8,6 +8,8 @@ std::string PatchOperationTypeName(PatchOperationType type)
     switch (type) {
     case PatchOperationType::EditFile:
         return "edit";
+    case PatchOperationType::EditIni:
+        return "ini";
     case PatchOperationType::CopyFile:
         return "copy";
     case PatchOperationType::RemoveFile:
