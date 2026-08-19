@@ -1,30 +1,50 @@
-# CDLC Patch — Design Notes
+# CDLC Patch
 
-**Status:** WIP. The game rejects custom song packs (`.psarc` not signed by
-Ubisoft) — we need to bypass that check.
+**Status:** implemented (stub).
 
-## Alternatives
+## What it does
 
-Two paths under consideration, neither committed yet:
+Lets the game load custom songs (`.psarc` not signed by Ubisoft) by dropping the
+`D3DX9_42.dll` enabler into the game directory.
 
-- **Use Lovrom8's DLL** — grab the enabler from
-  [Lovrom8/RSCDLCEnabler-TooManyCoresFix](https://github.com/Lovrom8/RSCDLCEnabler-TooManyCoresFix)
-  and have the launcher manage it. The repo has no license, so the launcher
-  would either download it on demand from GitHub (same as the user would do
-  manually) or the user provides the DLL themselves.
-- **User provides the DLL** — same "bring your own file" pattern used elsewhere
-  in the project.
+## How it works
 
-Building our own DLL is discarded — too much complexity for something that
-already exists and works.
+The game refuses to load unsigned `.psarc` files — the enabler DLL hooks the
+signature check and bypasses it. The launcher manages the DLL transparently:
 
-## Open questions
+1. **`patch add cdlc-enabler`** — downloads the enabler from
+   [Lovrom8/RSCDLCEnabler-TooManyCoresFix](https://github.com/Lovrom8/RSCDLCEnabler-TooManyCoresFix)
+   (once, cached in `~/.local/share/rocksmith-launcher/patches/cdlc-enabler/`)
+   and copies it next to the game executable.
+2. **`patch remove cdlc-enabler`** — deletes the DLL from the game directory.
+3. **`patch add cdlc-enabler -f`** — forces re-download of the enabler.
 
-- How is the DLL installed? Just drop the file, or does it need a config file?
-- Does the >32-thread crash fix in Lovrom8's fork apply under Wine/Proton?
+## Cache
 
-## CDLC song management
+`~/.local/share/rocksmith-launcher/patches/cdlc-enabler/D3DX9_42.dll` stores the
+downloaded binary. Once cached, subsequent `patch add` calls apply from cache
+without hitting the network. The `-f` flag forces a fresh download.
 
-Managing the actual `.psarc` song files (list, add, remove) is separate from the
-patch and planned for phase 7. The PSARC reader/writer in `psarc_util.cpp`
-(reused from the Direct Connect patch) will handle extracting song metadata.
+## Project files
+
+- **[cdlc_patch.cpp](../rocklaunch-core/src/patches/cdlc_patch.cpp)** — patch logic: download, cache, deploy, remove.
+- **[downloader.cpp](../rocklaunch-core/src/utils/downloader.cpp)** — `Fetch()` via `curl` subprocess.
+
+## Thanks
+
+This method exists thanks to [Lovrom8](https://github.com/Lovrom8). He
+personally recommended using his
+[RSCDLCEnabler-TooManyCoresFix](https://github.com/Lovrom8/RSCDLCEnabler-TooManyCoresFix)
+repo over the original geneccx fork — maintained, with the >32-thread crash fix.
+The enabler DLL is his work; the launcher simply manages it at launcher level,
+credited in the README.
+
+---
+
+## Future plans
+
+- **Multiple enabler sources** — allow choosing between different DLL providers.
+- **Manual DLL import** — let the user provide their own enabler binary.
+- **CDLC song management** — list, add, remove `.psarc` song files (separate from
+  the patch, planned for phase 7). The PSARC reader/writer in `psarc_util.cpp`
+  will handle extracting song metadata.

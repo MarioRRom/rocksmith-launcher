@@ -41,9 +41,11 @@ struct ProfileConfig
 class ConfigStore
 {
 public:
-    explicit ConfigStore(fs::path configDir = DefaultConfigDir());
+    explicit ConfigStore(fs::path configDir = DefaultConfigDir(),
+                         fs::path dataDir = DefaultDataDir());
 
     fs::path ConfigDir() const;
+    fs::path DataDir() const;
     fs::path ProfilePath(const std::string &profileId) const;
     bool ProfileExists(const std::string &profileId) const;
     std::vector<std::string> ListProfileIds() const;
@@ -69,6 +71,7 @@ private:
     void RemovePrefixDir(const fs::path &prefixDir) const;
 
     fs::path m_configDir;
+    fs::path m_dataDir;
 };
 
 } // namespace rocklaunch

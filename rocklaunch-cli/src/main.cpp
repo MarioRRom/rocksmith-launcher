@@ -1,6 +1,5 @@
 #include "rocklaunch/core/config_store.h"
 #include "rocklaunch/core/launch.h"
-#include "rocklaunch/core/logger.h"
 #include "rocklaunch/core/manual_source.h"
 #include "rocklaunch/core/patches/patch_manager.h"
 #include "rocklaunch/core/rocksmith2014_remastered_profile.h"
@@ -425,8 +424,6 @@ int LaunchProfile(const std::string &profileId,
 int main(int argc, char *argv[])
 {
     try {
-        rocklaunch::Logger logger;
-        logger.Info("rocklaunch-cli started");
         rocklaunch::ConfigStore configStore;
         rocklaunch::Rocksmith2014RemasteredProfile profile;
         rocklaunch::RunnerManager runnerManager = rocklaunch::RunnerManager::CreateDefault();
@@ -449,94 +446,77 @@ int main(int argc, char *argv[])
         }
 
         if (argument == "set-path" && argc == 4) {
-            logger.Info("Saving a manual game installation");
             return SetPath(argv[2], argv[3], configStore, profile);
         }
 
         if (argument == "runner" && argc == 3 && std::string_view(argv[2]) == "list") {
-            logger.Info("Listing available runners");
             return ListRunners(runnerManager);
         }
 
         if (argument == "runner" && argc == 5 && std::string_view(argv[2]) == "set") {
-            logger.Info("Assigning a runner to a profile");
             return SetRunner(argv[3], argv[4], configStore, runnerManager);
         }
 
         if (argument == "launch" && argc == 3) {
-            logger.Info("Launching a profile");
             return LaunchProfile(argv[2], configStore, profile, runnerManager);
         }
 
         if (argument == "patch" && argc == 3 && std::string_view(argv[2]) == "list") {
-            logger.Info("Listing all available patches");
             return PatchListAll(patchManager);
         }
 
         if (argument == "patch" && argc == 4 && std::string_view(argv[2]) == "list") {
-            logger.Info("Listing patches for a profile");
             return PatchList(argv[3], configStore, patchManager);
         }
 
         if (argument == "patch" && argc == 5 && std::string_view(argv[2]) == "add") {
-            logger.Info("Enabling a patch on a profile");
             return PatchAdd(argv[3], argv[4], patchManager, false);
         }
 
         if (argument == "patch" && argc == 6 && std::string_view(argv[2]) == "add"
             && (std::string_view(argv[3]) == "-f"
                 || std::string_view(argv[3]) == "--force")) {
-            logger.Info("Enabling a patch on a profile (forced)");
             return PatchAdd(argv[4], argv[5], patchManager, true);
         }
 
         if (argument == "patch" && argc == 5 && std::string_view(argv[2]) == "remove") {
-            logger.Info("Disabling a patch on a profile");
             return PatchRemove(argv[3], argv[4], patchManager, false);
         }
 
         if (argument == "patch" && argc == 6 && std::string_view(argv[2]) == "remove"
             && (std::string_view(argv[3]) == "-f"
                 || std::string_view(argv[3]) == "--force")) {
-            logger.Info("Disabling a patch on a profile (forced)");
             return PatchRemove(argv[4], argv[5], patchManager, true);
         }
 
         if (argument == "patch" && argc == 5 && std::string_view(argv[2]) == "status") {
-            logger.Info("Showing patch status");
             return PatchStatus(argv[3], argv[4], configStore, patchManager);
         }
 
         if (argument == "profile" && argc == 3 && std::string_view(argv[2]) == "list") {
-            logger.Info("Listing configured profiles");
             return ListProfiles(configStore);
         }
 
         if (argument == "profile" && argc == 3 && std::string_view(argv[2]) == "new") {
-            logger.Info("Creating a profile with an auto-generated name");
             std::string profileId = NextDefaultProfileId(profile.Id(), configStore);
             return CreateProfile(profileId, configStore, profile);
         }
 
         if (argument == "profile" && argc == 4 && std::string_view(argv[2]) == "new") {
-            logger.Info("Creating a profile");
             return CreateProfile(argv[3], configStore, profile);
         }
 
         if (argument == "profile" && argc == 4 && std::string_view(argv[2]) == "show") {
-            logger.Info("Showing a profile");
             return ShowProfile(argv[3], configStore);
         }
 
         if (argument == "profile" && argc == 4 && std::string_view(argv[2]) == "remove") {
-            logger.Info("Deleting a profile configuration");
             return RemoveProfile(argv[3], configStore, false);
         }
 
         if (argument == "profile" && argc == 5 && std::string_view(argv[2]) == "remove"
             && (std::string_view(argv[3]) == "-f"
                 || std::string_view(argv[3]) == "--force")) {
-            logger.Info("Deleting a profile configuration (forced)");
             return RemoveProfile(argv[4], configStore, true);
         }
 

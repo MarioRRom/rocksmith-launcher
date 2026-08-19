@@ -34,10 +34,12 @@ Nothing outside the core implements game detection, runner handling, patching, o
 ```
 ~/.config/rocksmith-launcher/
     config.json                        launcher-wide settings
-    profiles/<profile_id>.json         game instances
+                                       (future: runner defaults, colors, language)
 ~/.local/share/rocksmith-launcher/
+    profiles/<profile_id>.json         profile state (game, runner, patches)
     prefixes/<profile_id>/             WINEPREFIX / STEAM_COMPAT_DATA_PATH
     runners/                           downloaded GE-Proton versions
+    patches/                           cached downloadable patches
     logs/
 ```
 

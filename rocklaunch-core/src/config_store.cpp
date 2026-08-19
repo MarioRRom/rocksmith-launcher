@@ -30,8 +30,9 @@ bool IsUnder(const fs::path &path, const fs::path &root)
 
 } // namespace
 
-ConfigStore::ConfigStore(fs::path configDir)
+ConfigStore::ConfigStore(fs::path configDir, fs::path dataDir)
     : m_configDir(std::move(configDir))
+    , m_dataDir(std::move(dataDir))
 {
 }
 
@@ -40,10 +41,15 @@ fs::path ConfigStore::ConfigDir() const
     return m_configDir;
 }
 
+fs::path ConfigStore::DataDir() const
+{
+    return m_dataDir;
+}
+
 fs::path ConfigStore::ProfilePath(const std::string &profileId) const
 {
     ValidateProfileId(profileId);
-    return m_configDir / "profiles" / (profileId + ".json");
+    return m_dataDir / "profiles" / (profileId + ".json");
 }
 
 bool ConfigStore::ProfileExists(const std::string &profileId) const
@@ -55,7 +61,7 @@ bool ConfigStore::ProfileExists(const std::string &profileId) const
 std::vector<std::string> ConfigStore::ListProfileIds() const
 {
     std::vector<std::string> profileIds;
-    fs::path profilesDir = m_configDir / "profiles";
+    fs::path profilesDir = m_dataDir / "profiles";
     std::error_code error;
     if (!fs::is_directory(profilesDir, error)) {
         return profileIds;

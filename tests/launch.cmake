@@ -34,7 +34,7 @@ file(CHMOD "${TEST_ROOT}/home/.steam/steam/compatibilitytools.d/GE-Proton Test/p
 
 # Creating a profile assigns its prefix path right away.
 RunCli(0 profile new test-profile)
-file(READ "${TEST_ROOT}/config/rocksmith-launcher/profiles/test-profile.json" profileJson)
+file(READ "${TEST_ROOT}/data/rocksmith-launcher/profiles/test-profile.json" profileJson)
 if (NOT "${profileJson}" MATCHES "prefixes/test-profile")
     message(FATAL_ERROR "profile new did not persist the default prefix_dir")
 endif()

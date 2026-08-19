@@ -268,6 +268,7 @@ bool PatchCachePsarc(const fs::path &gameCache, bool patchDirection)
         logger.Info("DirectConnectPatch: backup created at " + bakPath.string());
     }
 
+    logger.Info("DirectConnectPatch: extracting cache.psarc");
     fs::path psarcTmp = tmpDir / "psarc";
     fs::create_directories(psarcTmp);
     psarc_util::Extract(gameCache, psarcTmp);
@@ -294,14 +295,17 @@ bool PatchCachePsarc(const fs::path &gameCache, bool patchDirection)
         : (!startupPresent && !missionPresent);
 
     if (alreadyInTargetState) {
+        logger.Info("DirectConnectPatch: already in target state, nothing to do");
         fs::remove_all(tmpDir, ec);
         return false;
     }
 
     if (patchDirection) {
+        logger.Info("DirectConnectPatch: enabling Direct Connect manifests");
         AddStartupOthercable(startupJson);
         AddMissionDirectConnect(missionJson);
     } else {
+        logger.Info("DirectConnectPatch: disabling Direct Connect manifests");
         RemoveStartupOthercable(startupJson);
         RemoveMissionDirectConnect(missionJson);
     }
@@ -311,8 +315,7 @@ bool PatchCachePsarc(const fs::path &gameCache, bool patchDirection)
                    "manifests/ui_menu_pillar_mission.database.json"},
                   tmpDir);
 
-    // Copy+remove instead of rename — temp dir and game install may be on
-    // different filesystems.
+    logger.Info("DirectConnectPatch: repacking cache.psarc");
     fs::path repackedTmp = tmpDir / "cache.psarc.repacked";
     psarc_util::Repack(psarcTmp, repackedTmp);
 
@@ -375,6 +378,7 @@ void DirectConnectPatch::Apply(const ProfileConfig &profile, bool force) const
                                  + ", profile is for game " + profile.gameId);
     }
 
+    Logger logger;
     fs::path gameCache = profile.installDir / "cache.psarc";
     if (!fs::exists(gameCache)) {
         throw std::runtime_error("cache.psarc not found at: " + gameCache.string());
@@ -382,7 +386,7 @@ void DirectConnectPatch::Apply(const ProfileConfig &profile, bool force) const
 
     PatchCachePsarc(gameCache, true);
 
-    // Standard Linux audio tweaks — persistent, not removed on patch disable.
+    logger.Info("DirectConnectPatch: applying audio tweaks to Rocksmith.ini");
     fs::path iniPath = profile.installDir / "Rocksmith.ini";
     IniEditor::Set(iniPath, "Audio", "ExclusiveMode", "0");
     IniEditor::Set(iniPath, "Audio", "Win32UltraLowLatencyMode", "0");

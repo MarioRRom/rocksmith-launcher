@@ -24,10 +24,10 @@ does the rest.
 - [x] Proton/Wine runner detection and per-profile selection
 - [x] Launch the game from a clean prefix
 - [x] Direct Connect patch — plug any audio interface or mic, no Real Tone Cable needed
-- [ ] CDLC patch (enable/disable) — method under evaluation
+- [x] CDLC patch (enable/disable) — deploy/remove the CDLC enabler DLL
+- [ ] GE-Proton downloader
 - [ ] Qt/QML GUI
 - [ ] CDLC songs manager
-- [ ] GE-Proton downloader
 - [ ] Steam game auto-detection
 
 ## Patches
@@ -36,8 +36,8 @@ does the rest.
   hidden input mode so any audio interface or mic works directly. No Real Tone
   Cable, no DLL, no spoofing. Tested with a cheap Cube Baby interface, works
   great.
-- **[CDLC](./.github/CustomDLCPatch.md)** — lets the game load custom songs. Method not
-  decided yet.
+- **[CDLC](./.github/CustomDLCPatch.md)** — lets the game load custom songs by
+  deploying the CDLC enabler DLL into the game folder. Togglable.
 
 ## Prerequisites
 

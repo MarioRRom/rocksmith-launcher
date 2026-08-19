@@ -5,6 +5,7 @@
 #include <ctime>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 
@@ -66,12 +67,17 @@ fs::path Logger::DefaultLogDir()
 
 void Logger::Write(std::string_view level, std::string_view message) const
 {
+    std::string timestamp = Timestamp();
+    std::string fileLine = timestamp + " [" + std::string(level) + "] " + std::string(message);
+
+    std::cerr << "[" << level << "] " << message << '\n';
+
     std::ofstream output(m_logFile, std::ios::app);
     if (!output.is_open()) {
         throw std::runtime_error("Unable to open log file: " + m_logFile.string());
     }
 
-    output << Timestamp() << " [" << level << "] " << message << '\n';
+    output << fileLine << '\n';
 }
 
 } // namespace rocklaunch
