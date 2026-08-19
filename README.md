@@ -46,6 +46,7 @@ does the rest.
 
 **Runtime:** `7z` ([p7zip](https://p7zip.sourceforge.net/)) —
 `sudo apt install p7zip-full` / `sudo pacman -S p7zip`.
+`curl` — usually pre-installed on Linux.
 
 ## Building
 
@@ -81,4 +82,3 @@ The methods implemented by this launcher are inspired by the following projects.
 - **[RSMods](https://github.com/Lovrom8/RSMods)** — Direct Connect Mode
 - **[RSCDLCEnabler](https://github.com/geneccx/RSCDLCEnabler)** — CDLC enabler (original concept)
 - **[RSCDLCEnabler-TooManyCoresFix](https://github.com/Lovrom8/RSCDLCEnabler-TooManyCoresFix)** — maintained CDLC enabler fork
-- **[RS2014-CDLC-Installer](https://github.com/phobos2077/RS2014-CDLC-Installer)** — CDLC management

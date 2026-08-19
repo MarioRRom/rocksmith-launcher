@@ -1,6 +1,6 @@
 # CDLC Patch
 
-**Status:** implemented (stub).
+**Status:** implemented.
 
 ## What it does
 
