@@ -8,11 +8,14 @@ add_library(rocklaunch-core
     src/patches/patch.cpp
     src/patches/patch_manager.cpp
     src/rocksmith2014_remastered_profile.cpp
-    src/runners/managed_runner_source.cpp
+    src/runners/launcher_runner_source.cpp
     src/runners/runner.cpp
+    src/runners/runner_cache.cpp
+    src/runners/runner_installer.cpp
     src/runners/runner_manager.cpp
     src/runners/steam_runner_source.cpp
     src/runners/system_wine_source.cpp
+    src/utils/checksum.cpp
     src/utils/downloader.cpp
     src/utils/ini_editor.cpp
     src/utils/psarc_util.cpp

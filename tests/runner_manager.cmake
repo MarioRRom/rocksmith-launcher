@@ -39,3 +39,44 @@ RunCli(0 profile show test-profile)
 if (NOT LAST_OUTPUT MATCHES "Runner: steam-proton-proton-test")
     message(FATAL_ERROR "The selected runner was not saved to the profile")
 endif()
+
+# Runner set with a nonexistent profile must fail.
+RunCli(1 runner set nonexistent-profile steam-proton-proton-test)
+if (NOT LAST_OUTPUT MATCHES "Profile not found")
+    message(FATAL_ERROR "Setting a runner on a nonexistent profile did not fail")
+endif()
+
+# Runner set with a nonexistent runner must fail.
+RunCli(1 runner set test-profile nonexistent-runner)
+if (NOT LAST_OUTPUT MATCHES "Runner not found")
+    message(FATAL_ERROR "Setting a nonexistent runner did not fail")
+endif()
+
+# A profile without a runner assigned must show 'not assigned'.
+RunCli(0 profile new no-runner)
+RunCli(0 profile show no-runner)
+if (NOT LAST_OUTPUT MATCHES "Runner: not assigned")
+    message(FATAL_ERROR "Unassigned runner should show 'not assigned'")
+endif()
+
+# Reassigning a runner on an existing profile must work.
+RunCli(0 runner set test-profile steam-proton-proton-test)
+RunCli(0 profile show test-profile)
+if (NOT LAST_OUTPUT MATCHES "Runner: steam-proton-proton-test")
+    message(FATAL_ERROR "Runner reassignment did not take effect")
+endif()
+
+# Launcher runner source: create a runner under the launcher data dir.
+file(MAKE_DIRECTORY "${TEST_ROOT}/data/rocksmith-launcher/runners/GE-Proton Test")
+file(WRITE "${TEST_ROOT}/data/rocksmith-launcher/runners/GE-Proton Test/proton" "")
+RunCli(0 runner list)
+if (NOT LAST_OUTPUT MATCHES "launcher")
+    message(FATAL_ERROR "Launcher runner source was not discovered")
+endif()
+
+# Profile remove must succeed with -f.
+RunCli(0 profile remove -f no-runner)
+RunCli(1 profile show no-runner)
+if (NOT LAST_OUTPUT MATCHES "Profile not found")
+    message(FATAL_ERROR "Deleted profile is still available")
+endif()

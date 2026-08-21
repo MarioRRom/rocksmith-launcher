@@ -5,10 +5,10 @@
 namespace rocklaunch
 {
 
-class ManagedRunnerSource final : public IRunnerSource
+class LauncherRunnerSource final : public IRunnerSource
 {
 public:
-    explicit ManagedRunnerSource(fs::path runnerDir = DefaultRunnerDir());
+    explicit LauncherRunnerSource(fs::path runnerDir = DefaultRunnerDir());
 
     std::vector<Runner> Discover() const override;
 

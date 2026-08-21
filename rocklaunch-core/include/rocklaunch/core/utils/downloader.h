@@ -20,7 +20,6 @@ struct ReleaseInfo
 {
     std::string version;
     std::string tag;
-    std::string publishedAt;
     std::vector<AssetInfo> assets;
 };
 

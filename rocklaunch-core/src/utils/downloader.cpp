@@ -37,10 +37,24 @@ std::string CurlGet(const std::string &url)
     std::error_code ec;
     fs::remove(tmpFile, ec);
 
-    RunSubprocess({"curl", "-s", "-L", "-f",
-                   "-o", tmpFile.string(),
-                   "-H", "Accept: application/vnd.github+json",
-                   url});
+    try {
+        RunSubprocess({"curl", "-s", "-L", "-f",
+                       "-o", tmpFile.string(),
+                       "-H", "Accept: application/vnd.github+json",
+                       url});
+    } catch (const std::runtime_error &error) {
+        // curl exits 22 on any HTTP error; api.github.com 4xx here is almost
+        // always the unauthenticated 60 requests/hour rate limit.
+        std::string what = error.what();
+        if (what.find("exit 22") != std::string::npos
+            && url.find("api.github.com") != std::string::npos) {
+            throw std::runtime_error(
+                "GitHub API request failed (exit 22). "
+                "The unauthenticated rate limit is 60 requests/hour. "
+                "Wait and retry, or use the cached releases list.");
+        }
+        throw;
+    }
 
     std::string body = ReadFile(tmpFile);
     fs::remove(tmpFile, ec);
@@ -52,7 +66,6 @@ ReleaseInfo ParseRelease(const nlohmann::json &rel)
     ReleaseInfo info;
     info.version = rel.value("tag_name", "");
     info.tag = rel.value("tag_name", "");
-    info.publishedAt = rel.value("published_at", "");
 
     if (rel.contains("assets") && rel["assets"].is_array()) {
         for (const auto &a : rel["assets"]) {
@@ -76,7 +89,7 @@ void Fetch(const std::string &url, const fs::path &destPath)
 
     fs::create_directories(destPath.parent_path());
 
-    RunSubprocess({"curl", "-L", "--progress-bar",
+    RunSubprocess({"curl", "-f", "-L", "--progress-bar",
                    "-o", destPath.string(),
                    url});
 
@@ -91,6 +104,9 @@ std::vector<ReleaseInfo> ListReleases(const std::string &repo, int count)
     Logger logger;
     logger.Info("Downloader: listing releases for " + repo);
 
+    // GitHub's unauthenticated API is limited to 60 requests/hour per IP.
+    // Every `runner search -u` calls this once per repo, so a cached release
+    // list is the difference between 2 requests and hitting the limit.
     std::string url = "https://api.github.com/repos/" + repo
                     + "/releases?per_page=" + std::to_string(count);
 

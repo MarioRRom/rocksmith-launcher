@@ -20,7 +20,8 @@ bool Rocksmith2014RemasteredProfile::ValidateInstall(const fs::path &installDir)
 
 // Runner mechanics (WINEPREFIX vs STEAM_COMPAT_DATA_PATH) are the launch's job;
 // Rocksmith itself needs no extra variables.
-std::vector<std::string> Rocksmith2014RemasteredProfile::RequiredEnv(const LaunchContext &context) const
+std::vector<std::string>
+Rocksmith2014RemasteredProfile::RequiredEnv(const LaunchContext &context) const
 {
     (void)context;
     return {};

@@ -1,55 +1,26 @@
+#include "cli_ui.h"
+
 #include "rocklaunch/core/config_store.h"
 #include "rocklaunch/core/launch.h"
 #include "rocklaunch/core/manual_source.h"
 #include "rocklaunch/core/patches/patch_manager.h"
 #include "rocklaunch/core/rocksmith2014_remastered_profile.h"
+#include "rocklaunch/core/runners/launcher_runner_source.h"
 #include "rocklaunch/core/runners/runner_manager.h"
+#include "rocklaunch/core/utils/string_util.h"
 
+#include <cerrno>
 #include <cstring>
 #include <exception>
-#include <iomanip>
 #include <iostream>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace
 {
-
-void PrintUsageEntry(const std::string &command, const std::string &description)
-{
-    std::cout << "    " << std::left << std::setw(40) << command << description << '\n';
-}
-
-void PrintUsage()
-{
-    std::cout << "rocklaunch-cli — Linux launcher for Rocksmith 2014\n"
-              << "\n"
-              << "USAGE:\n"
-              << "    rocklaunch-cli <command> [options]\n"
-              << "\n"
-              << "PROFILES:\n";
-    PrintUsageEntry("profile list", "List all profiles.");
-    PrintUsageEntry("profile new [<name>]", "Create a profile (auto-named if omitted).");
-    PrintUsageEntry("profile show <profile>", "Show profile details.");
-    PrintUsageEntry("profile remove <profile>", "Remove a profile and its prefix.");
-    PrintUsageEntry("set-path <profile> <path>", "Validate and set the game install path.");
-    std::cout << "\nRUNNERS:\n";
-    PrintUsageEntry("runner list", "List available Wine and Proton runners.");
-    PrintUsageEntry("runner set <profile> <runner_id>", "Assign a runner to a profile.");
-    std::cout << "\nPATCHES:\n";
-    PrintUsageEntry("patch list", "List all available patches.");
-    PrintUsageEntry("patch list <profile>", "List patches for a profile.");
-    PrintUsageEntry("patch add [-f] <profile> <patch>", "Enable a patch (-f to force re-enable).");
-    PrintUsageEntry("patch remove [-f] <profile> <patch>", "Disable a patch (-f to force).");
-    PrintUsageEntry("patch status <profile> <patch>", "Show a patch's state.");
-    std::cout << "\nLAUNCH:\n";
-    PrintUsageEntry("launch <profile>", "Launch the profile's game in its prefix.");
-    std::cout << "\nGENERAL:\n";
-    PrintUsageEntry("--help, -h", "Show this help message.");
-    PrintUsageEntry("--version", "Show the launcher version.");
-}
 
 // First unused "<gameId>-<n>" name so bare `profile new` keeps creating distinct profiles.
 std::string NextDefaultProfileId(const std::string &gameId,
@@ -91,14 +62,14 @@ int CreateProfile(const std::string &profileId,
         return 0;
     }
 
-    std::cerr << "Profile already exists: " << profileId << '\n';
+    PrintError("Profile already exists: " + profileId);
     return 1;
 }
 
 int ShowProfile(const std::string &profileId, rocklaunch::ConfigStore &configStore)
 {
     if (!configStore.ProfileExists(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n';
+        PrintError("Profile not found: " + profileId);
         return 1;
     }
 
@@ -143,12 +114,12 @@ int ListRunners(const rocklaunch::RunnerManager &runnerManager)
         return 0;
     }
 
-    std::cout << std::left << std::setw(56) << "id" << std::setw(8) << "type"
-              << std::setw(10) << "source" << "executable\n";
+    std::cout << Color(PadLeft("Id", 56), "1") << Color(PadLeft("Type", 8), "1")
+              << Color(PadLeft("Source", 10), "1") << Color("Executable", "1") << '\n';
     for (const rocklaunch::Runner &runner : runners) {
-        std::cout << std::setw(56) << runner.id << std::setw(8)
-                  << rocklaunch::RunnerTypeName(runner.type) << std::setw(10) << runner.source
-                  << runner.executable.string() << '\n';
+        std::cout << Color(PadLeft(runner.id, 56), kRunnerColor)
+                  << PadLeft(rocklaunch::RunnerTypeName(runner.type), 8)
+                  << PadLeft(runner.source, 10) << runner.executable.string() << '\n';
     }
 
     return 0;
@@ -160,12 +131,12 @@ int SetRunner(const std::string &profileId,
                const rocklaunch::RunnerManager &runnerManager)
 {
     if (!configStore.ProfileExists(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n';
+        PrintError("Profile not found: " + profileId);
         return 1;
     }
 
     if (!runnerManager.Find(runnerId).has_value()) {
-        std::cerr << "Runner not found: " << runnerId << '\n';
+        PrintError("Runner not found: " + runnerId);
         return 1;
     }
 
@@ -176,12 +147,137 @@ int SetRunner(const std::string &profileId,
     return 0;
 }
 
+int UpdateRunnerList(rocklaunch::ConfigStore &configStore)
+{
+    rocklaunch::RunnerManager runnerManager = rocklaunch::RunnerManager::CreateDefault();
+    runnerManager.Search("", configStore.DataDir(), true);
+    std::cout << "Updated the releases list.\n";
+    return 0;
+}
+
+int SearchRunners(const std::string &query,
+                  rocklaunch::ConfigStore &configStore,
+                  bool forceRefresh)
+{
+    rocklaunch::RunnerManager runnerManager = rocklaunch::RunnerManager::CreateDefault();
+    std::vector<rocklaunch::RunnerRelease> releases =
+        runnerManager.Search(query, configStore.DataDir(), forceRefresh);
+
+    if (releases.empty()) {
+        std::cout << "No releases found for: " << query << '\n';
+        return 0;
+    }
+
+    std::vector<rocklaunch::Runner> installed = runnerManager.List();
+    std::set<std::string> installedNames;
+    for (const rocklaunch::Runner &r : installed) {
+        installedNames.insert(rocklaunch::ToLower(r.name));
+    }
+
+    for (const rocklaunch::RunnerRelease &rr : releases) {
+        std::string size = "?";
+        std::optional<rocklaunch::AssetInfo> asset = runnerManager.SelectAsset(rr);
+        if (asset.has_value()) {
+            size = HumanSize(asset->size);
+        }
+
+        std::string package = RepoShortName(rr.repo) + '/' + Color(rr.tag, kRunnerColor);
+
+        std::cout << package << "  " << size;
+        if (installedNames.count(rocklaunch::ToLower(rr.tag)) > 0) {
+            std::cout << "  " << Color("[installed]", "32");
+        }
+        std::cout << '\n';
+    }
+
+    return 0;
+}
+
+int InstallRunner(const std::string &runnerName,
+                  const std::string &assetName,
+                  bool force,
+                  rocklaunch::ConfigStore &configStore)
+{
+    rocklaunch::fs::path runnersDir = rocklaunch::LauncherRunnerSource::DefaultRunnerDir();
+    rocklaunch::RunnerManager runnerManager = rocklaunch::RunnerManager::CreateDefault();
+
+    // Resolve the canonical tag (case-insensitive) so the prompt and folder
+    // name match what upstream uses, regardless of how the user typed it.
+    std::string canonicalName = runnerName;
+    std::optional<std::string> resolved =
+        runnerManager.ResolveName(runnerName, configStore.DataDir());
+    if (resolved.has_value()) {
+        canonicalName = *resolved;
+    } else {
+        PrintError("No release named '" + runnerName + "' in cache. "
+                   "Use 'runner search <query>' to browse available releases.");
+        return 1;
+    }
+
+    if (!force) {
+        bool alreadyInstalled = runnerManager.IsInstalled(canonicalName, runnersDir);
+        std::string prompt = alreadyInstalled
+            ? "Runner " + canonicalName + " is already installed. Reinstall it?"
+            : "Install runner " + canonicalName + "?";
+        if (!ConfirmDestructive(prompt)) {
+            std::cout << "Aborted.\n";
+            return 1;
+        }
+    }
+
+    try {
+        runnerManager.Install(runnerName, assetName, runnersDir);
+    } catch (const std::exception &error) {
+        PrintError("Install failed: " + std::string(error.what()));
+        return 1;
+    }
+
+    std::cout << "Installed runner: " << canonicalName << '\n';
+    return 0;
+}
+
+int RemoveRunner(const std::string &runnerName, bool force,
+                 rocklaunch::ConfigStore &configStore)
+{
+    rocklaunch::fs::path runnersDir = rocklaunch::LauncherRunnerSource::DefaultRunnerDir();
+    rocklaunch::RunnerManager runnerManager = rocklaunch::RunnerManager::CreateDefault();
+
+    std::string canonicalName = runnerName;
+    std::optional<std::string> resolved =
+        runnerManager.ResolveName(runnerName, configStore.DataDir());
+    if (resolved.has_value()) {
+        canonicalName = *resolved;
+    } else {
+        PrintError("No release named '" + runnerName + "' in cache. "
+                   "Use 'runner search <query>' to browse available releases.");
+        return 1;
+    }
+
+    if (!force) {
+        std::string prompt = "Remove runner " + canonicalName + "?";
+        if (!ConfirmDestructive(prompt)) {
+            std::cout << "Aborted.\n";
+            return 1;
+        }
+    }
+
+    try {
+        runnerManager.Remove(canonicalName, runnersDir);
+    } catch (const std::exception &error) {
+        PrintError("Remove failed: " + std::string(error.what()));
+        return 1;
+    }
+
+    std::cout << "Removed runner: " << canonicalName << '\n';
+    return 0;
+}
+
 int RemoveProfile(const std::string &profileId,
                   rocklaunch::ConfigStore &configStore,
                   bool force)
 {
     if (!configStore.ProfileExists(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n';
+        PrintError("Profile not found: " + profileId);
         return 1;
     }
 
@@ -191,7 +287,7 @@ int RemoveProfile(const std::string &profileId,
     }
 
     if (!configStore.DeleteProfile(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n';
+        PrintError("Profile not found: " + profileId);
         return 1;
     }
 
@@ -203,11 +299,12 @@ int RemoveProfile(const std::string &profileId,
 
 int PatchListAll(const rocklaunch::PatchManager &patchManager)
 {
-    std::cout << std::left << std::setw(26) << "Patch" << std::setw(26) << "Game" << "Name\n";
+    std::cout << Color(PadLeft("Patch", 26), "1") << Color(PadLeft("Game", 26), "1")
+              << Color("Name", "1") << '\n';
     for (const rocklaunch::ILaunchPatch *patch : patchManager.List()) {
         rocklaunch::PatchPreset preset = patch->Preset();
-        std::cout << std::setw(26) << patch->Id() << std::setw(26) << preset.gameId
-                  << preset.name << '\n';
+        std::cout << Color(PadLeft(patch->Id(), 26), kPatchColor)
+                  << PadLeft(preset.gameId, 26) << preset.name << '\n';
     }
 
     return 0;
@@ -218,22 +315,24 @@ int PatchList(const std::string &profileId,
               const rocklaunch::PatchManager &patchManager)
 {
     if (!configStore.ProfileExists(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n';
+        PrintError("Profile not found: " + profileId);
         return 1;
     }
 
     rocklaunch::ProfileConfig config = configStore.LoadProfile(profileId);
-    std::cout << std::left << std::setw(26) << "Patch" << std::setw(26) << "Game"
-              << std::setw(10) << "Status" << "Name\n";
+    std::cout << Color(PadLeft("Patch", 26), "1") << Color(PadLeft("Game", 26), "1")
+              << Color(PadLeft("Status", 10), "1") << Color("Name", "1") << '\n';
     for (const rocklaunch::ILaunchPatch *patch : patchManager.List()) {
         if (patch->GameId() != config.gameId) {
             continue;
         }
 
         rocklaunch::PatchPreset preset = patch->Preset();
-        std::cout << std::setw(26) << patch->Id() << std::setw(26) << preset.gameId
-                  << std::setw(10)
-                  << (patch->IsEnabled(config) ? "enabled" : "disabled") << preset.name << '\n';
+        bool enabled = patch->IsEnabled(config);
+        std::string status = enabled ? "enabled" : "disabled";
+        std::cout << Color(PadLeft(patch->Id(), 26), kPatchColor) << PadLeft(preset.gameId, 26)
+                  << Color(PadLeft(status, 10), enabled ? "32" : kPatchColor)
+                  << preset.name << '\n';
     }
 
     return 0;
@@ -246,7 +345,7 @@ int PatchAdd(const std::string &profileId,
 {
     std::string error;
     if (!patchManager.Enable(profileId, patchId, error, force)) {
-        std::cerr << error << '\n';
+        PrintError(error);
         return 1;
     }
 
@@ -261,7 +360,7 @@ int PatchRemove(const std::string &profileId,
 {
     std::string error;
     if (!patchManager.Disable(profileId, patchId, error, force)) {
-        std::cerr << error << '\n';
+        PrintError(error);
         return 1;
     }
 
@@ -275,13 +374,13 @@ int PatchStatus(const std::string &profileId,
                 const rocklaunch::PatchManager &patchManager)
 {
     if (!configStore.ProfileExists(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n';
+        PrintError("Profile not found: " + profileId);
         return 1;
     }
 
     const rocklaunch::ILaunchPatch *patch = patchManager.Find(patchId);
     if (patch == nullptr) {
-        std::cerr << "Unknown patch: " << patchId << '\n';
+        PrintError("Unknown patch: " + patchId);
         return 1;
     }
 
@@ -305,29 +404,29 @@ int PatchStatus(const std::string &profileId,
 // Path assignment
 
 int SetPath(const std::string &profileId,
-            const char *path,
+            const std::string &path,
             rocklaunch::ConfigStore &configStore,
             const rocklaunch::Rocksmith2014RemasteredProfile &gameProfile)
 {
     if (!configStore.ProfileExists(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n'
-                  << "Create it first with profile new <profile>.\n";
+        PrintError("Profile not found: " + profileId
+                    + "\nCreate it first with profile new <profile>.");
         return 1;
     }
 
     rocklaunch::ManualSource source(path);
     std::optional<rocklaunch::fs::path> installDir = source.Locate(gameProfile);
     if (!installDir.has_value()) {
-        std::cerr << "Invalid Rocksmith 2014 installation: " << path << '\n'
-                  << "Expected Rocksmith2014.exe and a dlc directory.\n";
+        PrintError("Invalid Rocksmith 2014 installation: " + path
+                    + "\nExpected Rocksmith2014.exe and a dlc directory.");
         return 1;
     }
 
     std::optional<std::string> conflictingProfile =
         configStore.ProfileUsingInstallDir(*installDir, profileId);
     if (conflictingProfile.has_value()) {
-        std::cerr << "This game installation is already used by profile: "
-                  << *conflictingProfile << '\n';
+        PrintError("This game installation is already used by profile: "
+                    + *conflictingProfile);
         return 1;
     }
 
@@ -335,8 +434,8 @@ int SetPath(const std::string &profileId,
 
     // A profile is bound to one game; never point it at another game's installation.
     if (config.gameId != gameProfile.Id()) {
-        std::cerr << "Profile " << profileId << " is for game " << config.gameId
-                  << ", not " << gameProfile.Id() << '\n';
+        PrintError("Profile " + profileId + " is for game " + config.gameId
+                    + ", not " + gameProfile.Id());
         return 1;
     }
 
@@ -356,7 +455,7 @@ int ListProfiles(rocklaunch::ConfigStore &configStore)
     }
 
     for (const std::string &profileId : profileIds) {
-        std::cout << profileId << '\n';
+        std::cout << Color(profileId, kProfileColor) << '\n';
     }
 
     return 0;
@@ -370,7 +469,7 @@ int LaunchProfile(const std::string &profileId,
                   const rocklaunch::RunnerManager &runnerManager)
 {
     if (!configStore.ProfileExists(profileId)) {
-        std::cerr << "Profile not found: " << profileId << '\n';
+        PrintError("Profile not found: " + profileId);
         return 1;
     }
 
@@ -378,26 +477,26 @@ int LaunchProfile(const std::string &profileId,
 
     // The game the profile belongs to must match the game we are about to launch.
     if (config.gameId != gameProfile.Id()) {
-        std::cerr << "Profile " << profileId << " is for game " << config.gameId
-                  << ", which this build does not support.\n";
+        PrintError("Profile " + profileId + " is for game " + config.gameId
+                    + ", which this build does not support.");
         return 1;
     }
 
     if (config.installDir.empty()) {
-        std::cerr << "Profile " << profileId << " has no install path. "
-                  << "Use set-path <profile> <path> first.\n";
+        PrintError("Profile " + profileId + " has no install path. "
+                    + "Use set-path <profile> <path> first.");
         return 1;
     }
 
     if (config.runnerId.empty()) {
-        std::cerr << "Profile " << profileId << " has no runner. "
-                  << "Use runner set <profile> <runner> first.\n";
+        PrintError("Profile " + profileId + " has no runner. "
+                    + "Use runner set <profile> <runner> first.");
         return 1;
     }
 
     std::optional<rocklaunch::Runner> runner = runnerManager.Find(config.runnerId);
     if (!runner.has_value()) {
-        std::cerr << "Runner not found: " << config.runnerId << '\n';
+        PrintError("Runner not found: " + config.runnerId);
         return 1;
     }
 
@@ -405,12 +504,12 @@ int LaunchProfile(const std::string &profileId,
 
     std::vector<std::string> warnings = rocklaunch::EnsurePrefix(config.prefixDir, *runner);
     for (const std::string &warning : warnings) {
-        std::cerr << "Warning: " << warning << '\n';
+        PrintWarning("Warning: " + warning);
     }
 
     if (!rocklaunch::ExecLaunchCommand(launch)) {
-        std::cerr << "Failed to start '" << launch.command.front() << "': "
-                  << std::strerror(errno) << '\n';
+        PrintError("Failed to start '" + launch.command.front() + "': "
+                    + std::strerror(errno));
         return 1;
     }
 
@@ -427,7 +526,8 @@ int main(int argc, char *argv[])
         rocklaunch::ConfigStore configStore;
         rocklaunch::Rocksmith2014RemasteredProfile profile;
         rocklaunch::RunnerManager runnerManager = rocklaunch::RunnerManager::CreateDefault();
-        rocklaunch::PatchManager patchManager = rocklaunch::PatchManager::CreateDefault(configStore);
+        rocklaunch::PatchManager patchManager =
+            rocklaunch::PatchManager::CreateDefault(configStore);
 
         if (argc == 1) {
             PrintUsage();
@@ -449,12 +549,59 @@ int main(int argc, char *argv[])
             return SetPath(argv[2], argv[3], configStore, profile);
         }
 
+        if (argument == "runner" && argc == 3 && std::string_view(argv[2]) == "-u") {
+            return UpdateRunnerList(configStore);
+        }
+
         if (argument == "runner" && argc == 3 && std::string_view(argv[2]) == "list") {
             return ListRunners(runnerManager);
         }
 
         if (argument == "runner" && argc == 5 && std::string_view(argv[2]) == "set") {
             return SetRunner(argv[3], argv[4], configStore, runnerManager);
+        }
+
+        if (argument == "runner" && argc >= 4 && std::string_view(argv[2]) == "search") {
+            bool refresh = false;
+            std::string query;
+            for (int i = 3; i < argc; ++i) {
+                if (std::string_view(argv[i]) == "-u") {
+                    refresh = true;
+                } else {
+                    if (!query.empty()) {
+                        query += ' ';
+                    }
+                    query += argv[i];
+                }
+            }
+            return SearchRunners(query, configStore, refresh);
+        }
+
+        if (argument == "runner" && argc >= 4 && std::string_view(argv[2]) == "install") {
+            std::string runnerName = argv[3];
+            std::string assetName;
+            bool force = false;
+            for (int i = 4; i < argc; ++i) {
+                if (IsForceFlag(std::string_view(argv[i]))) {
+                    force = true;
+                } else if (assetName.empty()) {
+                    assetName = argv[i];
+                }
+            }
+            return InstallRunner(runnerName, assetName, force, configStore);
+        }
+
+        if (argument == "runner" && argc >= 4 && std::string_view(argv[2]) == "remove") {
+            bool force = false;
+            std::string runnerName;
+            for (int i = 3; i < argc; ++i) {
+                if (IsForceFlag(std::string_view(argv[i]))) {
+                    force = true;
+                } else if (runnerName.empty()) {
+                    runnerName = argv[i];
+                }
+            }
+            return RemoveRunner(runnerName, force, configStore);
         }
 
         if (argument == "launch" && argc == 3) {
@@ -474,8 +621,7 @@ int main(int argc, char *argv[])
         }
 
         if (argument == "patch" && argc == 6 && std::string_view(argv[2]) == "add"
-            && (std::string_view(argv[3]) == "-f"
-                || std::string_view(argv[3]) == "--force")) {
+            && IsForceFlag(std::string_view(argv[3]))) {
             return PatchAdd(argv[4], argv[5], patchManager, true);
         }
 
@@ -484,8 +630,7 @@ int main(int argc, char *argv[])
         }
 
         if (argument == "patch" && argc == 6 && std::string_view(argv[2]) == "remove"
-            && (std::string_view(argv[3]) == "-f"
-                || std::string_view(argv[3]) == "--force")) {
+            && IsForceFlag(std::string_view(argv[3]))) {
             return PatchRemove(argv[4], argv[5], patchManager, true);
         }
 
@@ -515,16 +660,30 @@ int main(int argc, char *argv[])
         }
 
         if (argument == "profile" && argc == 5 && std::string_view(argv[2]) == "remove"
-            && (std::string_view(argv[3]) == "-f"
-                || std::string_view(argv[3]) == "--force")) {
+            && IsForceFlag(std::string_view(argv[3]))) {
             return RemoveProfile(argv[4], configStore, true);
         }
 
-        std::cerr << "Unknown option: " << argument << '\n';
-        PrintUsage();
+        bool knownTopLevel = argument == "profile" || argument == "runner"
+            || argument == "patch" || argument == "launch"
+            || argument == "set-path";
+        if (knownTopLevel) {
+            std::string subcommand = argc >= 3 ? argv[2] : "";
+            if (!subcommand.empty() && !IsKnownSubcommand(argument, argv[2])) {
+                PrintUsageError("unrecognized subcommand '" + subcommand + "'",
+                                std::string(argument));
+            } else {
+                PrintUsageError("invalid arguments for '" + std::string(argument) + "'",
+                                std::string(argument), subcommand);
+            }
+            return 1;
+        }
+
+        PrintUsageError("unrecognized subcommand '" + std::string(argument) + "'",
+                        std::string(argument));
         return 1;
     } catch (const std::exception &error) {
-        std::cerr << "rocklaunch-cli: " << error.what() << '\n';
+        PrintError("rocklaunch-cli: " + std::string(error.what()));
         return 1;
     }
 }

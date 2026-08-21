@@ -1,5 +1,6 @@
 add_executable(rocklaunch-cli
     src/main.cpp
+    src/cli_ui.cpp
 )
 
 target_link_libraries(rocklaunch-cli PRIVATE rocklaunch::core)

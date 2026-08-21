@@ -13,7 +13,7 @@ prefix setup, patches, and audio configuration. You bring the game, the launcher
 does the rest.
 
 - **Locate the game** via Steam or point it to any manual installation.
-- **Manage runners** — detects installed Proton/Wine; GE-Proton downloader planned.
+- **Manage runners** — detects installed Proton/Wine and downloads GE-Proton / Proton-CachyOS.
 - **Launch** from a clean prefix, no manual intervention.
 - **Patches out of the box** — Direct Connect and audio setup included.
 - **Manage CDLC** — toggle the CDLC patch, view/remove/import custom songs.
@@ -25,7 +25,7 @@ does the rest.
 - [x] Launch the game from a clean prefix
 - [x] Direct Connect patch — plug any audio interface or mic, no Real Tone Cable needed
 - [x] CDLC patch (enable/disable) — deploy/remove the CDLC enabler DLL
-- [ ] GE-Proton downloader
+- [x] GE-Proton / Proton-CachyOS downloader
 - [ ] Qt/QML GUI
 - [ ] CDLC songs manager
 - [ ] Steam game auto-detection
@@ -46,7 +46,7 @@ does the rest.
 
 **Runtime:** `7z` ([p7zip](https://p7zip.sourceforge.net/)) —
 `sudo apt install p7zip-full` / `sudo pacman -S p7zip`.
-`curl` — usually pre-installed on Linux.
+`curl` and `tar` — usually pre-installed on Linux.
 
 ## Building
 
