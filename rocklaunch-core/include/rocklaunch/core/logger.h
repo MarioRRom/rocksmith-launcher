@@ -15,7 +15,11 @@ class Logger
 public:
     explicit Logger(fs::path logDir = DefaultLogDir());
 
+    void Debug(std::string_view message) const;
     void Info(std::string_view message) const;
+    void Warn(std::string_view message) const;
+    void Error(std::string_view message) const;
+
     fs::path LogFile() const;
 
     static fs::path DefaultLogDir();

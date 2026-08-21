@@ -151,12 +151,13 @@ void RunnerInstaller::Install(const std::string &runnerName,
         std::string expectedHash = ParseSha512SumFile(sha512Path);
         std::string actualHash = HashFile(tarballPath);
         if (actualHash != expectedHash) {
+            logger.Error("RunnerInstaller: SHA-512 mismatch for " + asset.name);
             throw std::runtime_error(
                 "SHA-512 mismatch for " + asset.name + "\n"
                 "  expected: " + expectedHash + "\n"
                 "  got:      " + actualHash);
         }
-        logger.Info("RunnerInstaller: SHA-512 verified for " + asset.name);
+        logger.Debug("RunnerInstaller: SHA-512 verified for " + asset.name);
 
         // Extract and move the top-level directory into place.
         fs::path extractDir = tmpDir / "extracted";
@@ -180,8 +181,9 @@ void RunnerInstaller::Install(const std::string &runnerName,
 
         fs::remove_all(tmpDir);
 
-        logger.Info("RunnerInstaller: installed " + tag + " to "
-                    + finalPath.string());
+        logger.Debug("RunnerInstaller: installed " + tag + " to "
+                     + finalPath.string());
+        logger.Info("RunnerInstaller: installed " + tag);
     } catch (...) {
         fs::remove_all(tmpDir);
         throw;

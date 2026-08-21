@@ -139,7 +139,7 @@ void RunnerCache::Refresh(const fs::path &dataDir)
     }
     out << json.dump(4) << '\n';
 
-    logger.Info("RunnerCache: cached " + std::to_string(all.size()) + " releases");
+    logger.Debug("RunnerCache: cached " + std::to_string(all.size()) + " releases");
 }
 
 bool RunnerCache::NeedsRefresh(const fs::path &path) const

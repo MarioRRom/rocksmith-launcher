@@ -43,16 +43,19 @@ std::string CurlGet(const std::string &url)
                        "-H", "Accept: application/vnd.github+json",
                        url});
     } catch (const std::runtime_error &error) {
-        // curl exits 22 on any HTTP error; api.github.com 4xx here is almost
-        // always the unauthenticated 60 requests/hour rate limit.
         std::string what = error.what();
+
         if (what.find("exit 22") != std::string::npos
             && url.find("api.github.com") != std::string::npos) {
-            throw std::runtime_error(
-                "GitHub API request failed (exit 22). "
-                "The unauthenticated rate limit is 60 requests/hour. "
-                "Wait and retry, or use the cached releases list.");
+            logger.Error("Downloader: GitHub API rate limit exceeded");
+            throw;
         }
+
+        if (what.find("exit 6") != std::string::npos) {
+            logger.Error("Downloader: network unreachable");
+            throw;
+        }
+
         throw;
     }
 
@@ -135,7 +138,7 @@ AssetInfo ResolveAsset(const std::string &repo, const std::string &tag,
                        const std::string &assetName)
 {
     Logger logger;
-    logger.Info("Downloader: resolving asset '" + assetName + "' in "
+    logger.Debug("Downloader: resolving asset '" + assetName + "' in "
                 + repo + "@" + tag);
 
     std::string url = "https://api.github.com/repos/" + repo

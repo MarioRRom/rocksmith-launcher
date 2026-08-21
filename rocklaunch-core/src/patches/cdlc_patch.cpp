@@ -77,11 +77,12 @@ void DownloadEnabler()
     std::error_code ec;
     fs::rename(tmpPath, CachedDll(), ec);
     if (ec) {
+        logger.Error("CDLCPatch: failed to finalize cached enabler");
         throw std::runtime_error("Failed to finalize cached enabler: "
                                  + ec.message());
     }
 
-    logger.Info("CDLCPatch: enabler cached at " + CachedDll().string());
+    logger.Debug("CDLCPatch: enabler cached at " + CachedDll().string());
 }
 
 } // namespace
@@ -133,7 +134,7 @@ void CDLCPatch::Apply(const ProfileConfig &profile, bool force) const
 
     // Already deployed — nothing to do (unless forcing a re-deploy).
     if (fs::exists(dllDst) && !force) {
-        logger.Info("CDLCPatch: enabler already present at " + dllDst.string());
+        logger.Debug("CDLCPatch: enabler already present at " + dllDst.string());
         return;
     }
 
@@ -144,7 +145,8 @@ void CDLCPatch::Apply(const ProfileConfig &profile, bool force) const
 
     // Deploy from cache to game directory.
     AtomicCopy(CachedDll(), dllDst);
-    logger.Info("CDLCPatch: enabler deployed to " + dllDst.string());
+    logger.Debug("CDLCPatch: enabler deployed to " + dllDst.string());
+    logger.Info("CDLCPatch: enabled on " + profile.id);
 }
 
 void CDLCPatch::Remove(const ProfileConfig &profile) const
@@ -158,17 +160,19 @@ void CDLCPatch::Remove(const ProfileConfig &profile) const
     fs::path dllPath = profile.installDir / kEnablerFile;
 
     if (!fs::exists(dllPath)) {
-        logger.Info("CDLCPatch: enabler not present, nothing to remove");
+        logger.Debug("CDLCPatch: enabler not present, nothing to remove");
         return;
     }
 
     std::error_code ec;
     fs::remove(dllPath, ec);
     if (ec) {
+        logger.Error("CDLCPatch: failed to remove enabler from " + dllPath.string());
         throw std::runtime_error("Failed to remove enabler: " + ec.message());
     }
 
-    logger.Info("CDLCPatch: enabler removed from " + dllPath.string());
+    logger.Debug("CDLCPatch: enabler removed from " + dllPath.string());
+    logger.Info("CDLCPatch: disabled on " + profile.id);
 }
 
 } // namespace rocklaunch

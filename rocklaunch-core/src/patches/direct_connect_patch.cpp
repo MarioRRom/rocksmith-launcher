@@ -268,20 +268,21 @@ bool PatchCachePsarc(const fs::path &gameCache, bool patchDirection)
         logger.Info("DirectConnectPatch: backup created at " + bakPath.string());
     }
 
-    logger.Info("DirectConnectPatch: extracting cache.psarc");
+    logger.Debug("DirectConnectPatch: extracting cache.psarc");
     fs::path psarcTmp = tmpDir / "psarc";
     fs::create_directories(psarcTmp);
     psarc_util::Extract(gameCache, psarcTmp);
 
     fs::path cache7z = psarcTmp / "cache7.7z";
     if (!fs::exists(cache7z)) {
-        throw std::runtime_error("cache7.7z not found in extracted PSARC");
+        logger.Error("DirectConnectPatch: cache7.7z not found in extracted PSARC");
+        throw std::runtime_error("cache7.7z not found");
     }
 
     RunSubprocess({"7z", "x", cache7z.string(),
                    "manifests/ui_menu_pillar_startup.database.json",
                    "manifests/ui_menu_pillar_mission.database.json",
-                   "-o" + tmpDir.string(), "-y"});
+                   "-o" + tmpDir.string(), "-y", "-bso0"});
 
     fs::path manifestsDir = tmpDir / "manifests";
     fs::path startupJson = manifestsDir / "ui_menu_pillar_startup.database.json";
@@ -301,21 +302,22 @@ bool PatchCachePsarc(const fs::path &gameCache, bool patchDirection)
     }
 
     if (patchDirection) {
-        logger.Info("DirectConnectPatch: enabling Direct Connect manifests");
+        logger.Debug("DirectConnectPatch: enabling Direct Connect manifests");
         AddStartupOthercable(startupJson);
         AddMissionDirectConnect(missionJson);
     } else {
-        logger.Info("DirectConnectPatch: disabling Direct Connect manifests");
+        logger.Debug("DirectConnectPatch: disabling Direct Connect manifests");
         RemoveStartupOthercable(startupJson);
         RemoveMissionDirectConnect(missionJson);
     }
 
     RunSubprocess({"7z", "u", cache7z.string(),
                    "manifests/ui_menu_pillar_startup.database.json",
-                   "manifests/ui_menu_pillar_mission.database.json"},
+                   "manifests/ui_menu_pillar_mission.database.json",
+                   "-bso0"},
                   tmpDir);
 
-    logger.Info("DirectConnectPatch: repacking cache.psarc");
+    logger.Debug("DirectConnectPatch: repacking cache.psarc");
     fs::path repackedTmp = tmpDir / "cache.psarc.repacked";
     psarc_util::Repack(psarcTmp, repackedTmp);
 
@@ -381,7 +383,8 @@ void DirectConnectPatch::Apply(const ProfileConfig &profile, bool force) const
     Logger logger;
     fs::path gameCache = profile.installDir / "cache.psarc";
     if (!fs::exists(gameCache)) {
-        throw std::runtime_error("cache.psarc not found at: " + gameCache.string());
+        logger.Error("DirectConnectPatch: cache.psarc not found at " + gameCache.string());
+        throw std::runtime_error("cache.psarc not found");
     }
 
     PatchCachePsarc(gameCache, true);
@@ -390,6 +393,8 @@ void DirectConnectPatch::Apply(const ProfileConfig &profile, bool force) const
     fs::path iniPath = profile.installDir / "Rocksmith.ini";
     IniEditor::Set(iniPath, "Audio", "ExclusiveMode", "0");
     IniEditor::Set(iniPath, "Audio", "Win32UltraLowLatencyMode", "0");
+
+    logger.Info("DirectConnectPatch: enabled on " + profile.id);
 }
 
 void DirectConnectPatch::Remove(const ProfileConfig &profile) const
@@ -399,12 +404,16 @@ void DirectConnectPatch::Remove(const ProfileConfig &profile) const
                                  + ", profile is for game " + profile.gameId);
     }
 
+    Logger logger;
     fs::path gameCache = profile.installDir / "cache.psarc";
     if (!fs::exists(gameCache)) {
-        throw std::runtime_error("cache.psarc not found at: " + gameCache.string());
+        logger.Error("DirectConnectPatch: cache.psarc not found at " + gameCache.string());
+        throw std::runtime_error("cache.psarc not found");
     }
 
     PatchCachePsarc(gameCache, false);
+
+    logger.Info("DirectConnectPatch: disabled on " + profile.id);
 }
 
 } // namespace rocklaunch

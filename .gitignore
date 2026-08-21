@@ -1,5 +1,6 @@
 # Personal / local-only files
 AGENTS.md
+.vscode/
 
 # CMake build output
 build/

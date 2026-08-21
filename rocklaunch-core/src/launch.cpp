@@ -1,6 +1,7 @@
 #include "rocklaunch/core/launch.h"
 
 #include "rocklaunch/core/launch_context.h"
+#include "rocklaunch/core/logger.h"
 
 #include <cstdlib>
 #include <stdexcept>
@@ -72,6 +73,7 @@ fs::path WineBinaryFor(const Runner &runner)
 
 std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &runner)
 {
+    Logger logger;
     std::vector<std::string> warnings;
     std::error_code error;
 
@@ -85,13 +87,14 @@ std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &r
 
     fs::create_directories(winePrefix, error);
     if (error) {
-        throw std::runtime_error("Unable to create prefix: " + winePrefix.string());
+        logger.Error("Launch: unable to create prefix at " + winePrefix.string());
+        throw std::runtime_error("Unable to create prefix");
     }
 
     fs::path wine = WineBinaryFor(runner);
     if (!fs::is_regular_file(wine, error)) {
-        warnings.emplace_back("wine binary not found at " + wine.string()
-                              + "; Audio=alsa was not applied");
+        logger.Warn("Launch: wine binary not found at " + wine.string());
+        warnings.emplace_back("Audio=alsa skipped — wine not found");
         return warnings;
     }
 
@@ -104,7 +107,9 @@ std::vector<std::string> EnsurePrefix(const fs::path &prefixDir, const Runner &r
                                   "/v", "Audio", "/d", "alsa", "/f" },
                                 { "WINEPREFIX=" + winePrefix.string() });
         if (result != 0) {
-            warnings.emplace_back("Audio=alsa could not be applied to the prefix (exit "
+            logger.Warn("Launch: Audio=alsa reg add failed (exit "
+                        + std::to_string(result) + ")");
+            warnings.emplace_back("Audio=alsa failed (exit "
                                   + std::to_string(result) + ")");
             break;
         }
